@@ -1,29 +1,48 @@
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'create_account_screen.dart';
+import 'login_screen.dart';
 
 /// StudyScape welcome/onboarding screen with geometric pattern background,
 /// translucent card, and Create Account / Login actions.
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
-  static const Color _bgBlue = Color(0xFF212B58);
-  static const Color _welcomeOrange = Color(0xFFFF8C00);
-  static const Color _buttonStart = Color(0xFFE0B47F);
-  static const Color _buttonEnd = Color(0xFFD4A772);
-  static const Color _patternColor = Color(0x1AFFFFFF);
+  static const Color _bgDarkest = Color(0xFF14234B);
+  static const Color _bgMid = Color(0xFF3A6DAF);
+  static const Color _bgLightest = Color(0xFF94BAC4);
+  static const Color _welcomeOrange = Color(0xFFE57D37);
+  static const Color _buttonStart = Color(0xFFEFB880);
+  static const Color _buttonEnd = Color(0xFFEAA870);
+  static const Color _patternColor = Color(0x28FFFFFF);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _bgDarkest,
       body: Stack(
+        fit: StackFit.expand,
         children: [
-          // Dark blue background
-          Container(color: _bgBlue),
-          // Geometric pattern overlay
-          CustomPaint(
-            painter: _GeometricPatternPainter(color: _patternColor),
-            size: Size.infinite,
+          // Gradient: topLeft → bottomRight, 5% / 51% / 100%
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [_bgDarkest, _bgMid, _bgLightest],
+                  stops: [0.05, 0.51, 1.0],
+                ),
+              ),
+            ),
+          ),
+          // Outlined geometric pattern overlay
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _GeometricPatternPainter(color: _patternColor),
+            ),
           ),
           // Content
           SafeArea(
@@ -33,29 +52,28 @@ class WelcomeScreen extends StatelessWidget {
                 // App title
                 Text(
                   'StudyScape',
-                  style: TextStyle(
+                  style: GoogleFonts.poppins(
                     color: Colors.white,
-                    fontSize: 28,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
                   ),
                 ),
                 const Spacer(),
-                // Translucent card
+                // Card at bottom with padding
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: EdgeInsets.fromLTRB(28, 0, 28, 28 + MediaQuery.of(context).padding.bottom),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(32),
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(28, 32, 28, 36),
+                        padding: const EdgeInsets.fromLTRB(28, 32, 28, 48),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(24),
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(32),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withOpacity(0.25),
                             width: 1,
                           ),
                         ),
@@ -65,30 +83,52 @@ class WelcomeScreen extends StatelessWidget {
                           children: [
                             Text(
                               'Welcome',
-                              style: TextStyle(
+                              style: GoogleFonts.poppins(
                                 color: _welcomeOrange,
-                                fontSize: 36,
+                                fontSize: 53,
                                 fontWeight: FontWeight.bold,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withOpacity(0.12),
+                                    offset: const Offset(0, 2),
+                                    blurRadius: 8,
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 6),
                             Text(
                               'Sign in to join the world of active learners.',
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 color: Colors.white,
-                                fontSize: 17,
+                                fontSize: 16,
+                                fontWeight: FontWeight.normal,
                                 height: 1.4,
                               ),
                             ),
-                            const SizedBox(height: 28),
+                            const SizedBox(height: 56),
                             _WelcomeButton(
                               label: 'Create Account',
-                              onPressed: () {},
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const CreateAccountScreen(),
+                                  ),
+                                );
+                              },
                             ),
                             const SizedBox(height: 14),
                             _WelcomeButton(
                               label: 'Login',
-                              onPressed: () {},
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const LoginScreen(),
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -96,7 +136,6 @@ class WelcomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 48),
               ],
             ),
           ),
@@ -162,57 +201,111 @@ class _WelcomeButton extends StatelessWidget {
   }
 }
 
-/// Paints a subtle geometric pattern (circles, triangles, squares, etc.).
+/// Paints a subtle outlined geometric pattern (circles, rounded squares, rounded triangles, rounded hexagons, rounded rectangles).
 class _GeometricPatternPainter extends CustomPainter {
   _GeometricPatternPainter({required this.color});
 
   final Color color;
 
+  static const double _sqrt3 = 1.7320508075688772;
+
+  static Offset _along(Offset a, Offset b, double t) {
+    final dx = b.dx - a.dx;
+    final dy = b.dy - a.dy;
+    final len = math.sqrt(dx * dx + dy * dy);
+    if (len <= 0) return a;
+    return Offset(a.dx + dx * t / len, a.dy + dy * t / len);
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
+    final strokePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
 
-    final random = _SeededRandom(42);
+    final random = _SeededRandom(9173);
     final shapes = <void Function(Canvas, double, double)>[
       (c, x, y) {
-        c.drawCircle(Offset(x, y), 4 + random.next() * 8, paint);
-      },
-      (c, x, y) {
-        final r = 6 + random.next() * 10;
-        c.drawRect(
-          Rect.fromCenter(center: Offset(x, y), width: r * 2, height: r * 2),
-          paint,
-        );
+        c.drawCircle(Offset(x, y), 3 + random.next() * 6, strokePaint);
       },
       (c, x, y) {
         final r = 5 + random.next() * 8;
-        final path = Path()
-          ..moveTo(x, y - r)
-          ..lineTo(x + r, y + r)
-          ..lineTo(x - r, y + r)
-          ..close();
-        c.drawPath(path, paint);
+        final rect = Rect.fromCenter(center: Offset(x, y), width: r * 2, height: r * 2);
+        c.drawRRect(RRect.fromRectAndRadius(rect, Radius.circular(r * 0.6)), strokePaint);
       },
       (c, x, y) {
         final r = 4 + random.next() * 6;
-        final path = Path();
-        for (var i = 0; i < 6; i++) {
-          final angle = (i * 60) * math.pi / 180;
-          final px = x + r * math.cos(angle);
-          final py = y + r * math.sin(angle);
-          if (i == 0) path.moveTo(px, py);
-          else path.lineTo(px, py);
-        }
-        path.close();
-        c.drawPath(path, paint);
+        final cr = (r * 0.5).clamp(1.0, r * 0.4);
+        final v0 = Offset(x, y - r);
+        final v1 = Offset(x + r, y + r);
+        final v2 = Offset(x - r, y + r);
+        final p0a = _along(v0, v1, cr);
+        final p0b = _along(v0, v2, cr);
+        final p1a = _along(v1, v2, cr);
+        final p1b = _along(v1, v0, cr);
+        final p2a = _along(v2, v0, cr);
+        final p2b = _along(v2, v1, cr);
+        final path = Path()
+          ..moveTo(p0a.dx, p0a.dy)
+          ..lineTo(p1b.dx, p1b.dy)
+          ..arcToPoint(p1a, radius: Radius.circular(cr), clockwise: false)
+          ..lineTo(p2b.dx, p2b.dy)
+          ..arcToPoint(p2a, radius: Radius.circular(cr), clockwise: false)
+          ..lineTo(p0b.dx, p0b.dy)
+          ..arcToPoint(p0a, radius: Radius.circular(cr), clockwise: false);
+        c.drawPath(path, strokePaint);
       },
       (c, x, y) {
-        final len = 8 + random.next() * 16;
-        c.drawLine(Offset(x - len, y), Offset(x + len, y), paint);
+        // Rounded rectangle (wider or taller than square)
+        final w = 5 + random.next() * 10;
+        final h = 3 + random.next() * 6;
+        final rect = Rect.fromCenter(center: Offset(x, y), width: w * 2, height: h * 2);
+        final cr = math.min(w, h) * 0.5;
+        c.drawRRect(RRect.fromRectAndRadius(rect, Radius.circular(cr)), strokePaint);
+      },
+      (c, x, y) {
+        // Rounded hexagon (flat-top, radius r)
+        final r = 3 + random.next() * 5;
+        final cr = (r * 0.4).clamp(0.8, r * 0.35);
+        final v0 = Offset(x + r, y);
+        final v1 = Offset(x + r * 0.5, y + r * _sqrt3 * 0.5);
+        final v2 = Offset(x - r * 0.5, y + r * _sqrt3 * 0.5);
+        final v3 = Offset(x - r, y);
+        final v4 = Offset(x - r * 0.5, y - r * _sqrt3 * 0.5);
+        final v5 = Offset(x + r * 0.5, y - r * _sqrt3 * 0.5);
+        final p0a = _along(v0, v1, cr);
+        final p0b = _along(v0, v5, cr);
+        final p1a = _along(v1, v2, cr);
+        final p1b = _along(v1, v0, cr);
+        final p2a = _along(v2, v3, cr);
+        final p2b = _along(v2, v1, cr);
+        final p3a = _along(v3, v4, cr);
+        final p3b = _along(v3, v2, cr);
+        final p4a = _along(v4, v5, cr);
+        final p4b = _along(v4, v3, cr);
+        final p5a = _along(v5, v0, cr);
+        final p5b = _along(v5, v4, cr);
+        final path = Path()
+          ..moveTo(p0a.dx, p0a.dy)
+          ..lineTo(p1b.dx, p1b.dy)
+          ..arcToPoint(p1a, radius: Radius.circular(cr), clockwise: false)
+          ..lineTo(p2b.dx, p2b.dy)
+          ..arcToPoint(p2a, radius: Radius.circular(cr), clockwise: false)
+          ..lineTo(p3b.dx, p3b.dy)
+          ..arcToPoint(p3a, radius: Radius.circular(cr), clockwise: false)
+          ..lineTo(p4b.dx, p4b.dy)
+          ..arcToPoint(p4a, radius: Radius.circular(cr), clockwise: false)
+          ..lineTo(p5b.dx, p5b.dy)
+          ..arcToPoint(p5a, radius: Radius.circular(cr), clockwise: false)
+          ..lineTo(p0b.dx, p0b.dy)
+          ..arcToPoint(p0a, radius: Radius.circular(cr), clockwise: false);
+        c.drawPath(path, strokePaint);
       },
     ];
 
-    for (var i = 0; i < 80; i++) {
+    final count = 85 + (random.next() * 35).round();
+    for (var i = 0; i < count; i++) {
       final x = random.next() * size.width;
       final y = random.next() * size.height;
       shapes[random.nextInt(shapes.length)](canvas, x, y);
