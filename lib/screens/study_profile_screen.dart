@@ -63,7 +63,7 @@ class _StudyProfileScreenState extends State<StudyProfileScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: StudyScapeColors.vibeOptionOrange,
-                      foregroundColor: Colors.white,
+                      foregroundColor: const Color(0xFFEC8B46),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(26),
                       ),

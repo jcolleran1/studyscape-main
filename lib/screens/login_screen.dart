@@ -1,8 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../widgets/frosted_text_field.dart';
 import '../widgets/circular_submit_button.dart';
+import '../widgets/frosted_text_field.dart';
+import '../widgets/auth_headline_fitted.dart';
 import '../widgets/studyscape_background.dart';
 import 'create_account_screen.dart';
 import 'study_vibe_screen.dart';
@@ -16,8 +17,13 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  static const Color _titleOrange = Color(0xFFE57D37);
   static const Color _linkBlue = Color(0xFF6BA3D0);
+  static const Color _headerInk = Color(0xFF212B58);
+  static const Color _bodyText = Color(0xFF4A5568);
+
+  /// Same wordmark as [WelcomeScreen] / create account.
+  static const Color _studyScapeTitle = Color(0xFF585552);
+  static const double _studyScapeLogoFontSize = 20;
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -46,14 +52,26 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loginHeadlineStyle = GoogleFonts.poppins(
+      fontSize: 80,
+      fontWeight: FontWeight.w700,
+      height: 1.0,
+      letterSpacing: -2,
+      color: const Color(0xFFFFFFFF).withValues(alpha: 0.5),
+    );
+
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          const Positioned.fill(child: StudyscapeBackground()),
+          const Positioned.fill(
+            child: WelcomeBackgroundImage(),
+          ),
           SafeArea(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 48),
+                const SizedBox(height: 60),
                 Stack(
                   alignment: Alignment.center,
                   children: [
@@ -63,7 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         padding: const EdgeInsets.only(left: 12),
                         child: IconButton(
                           icon: const Icon(Icons.arrow_back_ios_new),
-                          color: Colors.white,
+                          color: _headerInk,
                           onPressed: () => Navigator.pop(context),
                           padding: const EdgeInsets.all(12),
                           constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
@@ -72,16 +90,22 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     Text(
                       'StudyScape',
+                      textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
+                        color: _studyScapeTitle.withValues(alpha: 0.4),
+                        fontSize: _studyScapeLogoFontSize,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 88),
+                AuthHeadlineFitted(
+                  text: 'login',
+                  style: loginHeadlineStyle,
+                ),
                 const Spacer(),
+                const SizedBox(height: 20),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: ClipRRect(
@@ -100,7 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         padding: const EdgeInsets.fromLTRB(28, 32, 28, 36),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.11),
+                          color: Colors.white.withOpacity(0.56),
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(28),
                             topRight: Radius.circular(28),
@@ -108,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             bottomRight: Radius.circular(20),
                           ),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.18),
+                            color: _headerInk.withOpacity(0.08),
                             width: 1,
                           ),
                         ),
@@ -117,53 +141,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerLeft,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Welcome',
-                                      style: GoogleFonts.poppins(
-                                        color: _titleOrange,
-                                        fontSize: 53,
-                                        fontWeight: FontWeight.bold,
-                                        height: 0.95,
-                                        shadows: [
-                                          Shadow(
-                                            offset: const Offset(0, 3),
-                                            blurRadius: 14,
-                                            color: Colors.black.withOpacity(0.3),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 8),
-                                      child: Text(
-                                        'Back',
-                                        style: GoogleFonts.poppins(
-                                          color: _titleOrange,
-                                          fontSize: 53,
-                                          fontWeight: FontWeight.bold,
-                                          height: 0.95,
-                                          shadows: [
-                                            Shadow(
-                                              offset: const Offset(0, 3),
-                                              blurRadius: 14,
-                                              color: Colors.black.withOpacity(0.3),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 22),
                               GestureDetector(
                                 onTap: () {
                                   Navigator.pushReplacement(
@@ -176,7 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: RichText(
                                   text: TextSpan(
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.95),
+                                      color: _bodyText,
                                       fontSize: 16,
                                       height: 1.4,
                                     ),
@@ -186,7 +163,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         text: 'Create Account',
                                         style: TextStyle(
                                           decoration: TextDecoration.underline,
-                                          decorationColor: Colors.white.withOpacity(0.9),
+                                          decorationColor: _bodyText,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -198,12 +175,14 @@ class _LoginScreenState extends State<LoginScreen> {
                               FrostedTextField(
                                 controller: _emailController,
                                 hintText: 'Email',
+                                useLightSurface: true,
                               ),
                               const SizedBox(height: 16),
                               FrostedTextField(
                                 controller: _passwordController,
                                 hintText: 'Password',
                                 obscureText: true,
+                                useLightSurface: true,
                               ),
                               const SizedBox(height: 14),
                               GestureDetector(

@@ -16,10 +16,16 @@ class StudyVibeScreen extends StatefulWidget {
 class _StudyVibeScreenState extends State<StudyVibeScreen> {
   int? _selectedIndex;
 
+  /// Same wordmark as welcome / login / create account.
+  static const Color _studyScapeTitle = Color(0xFF585552);
+  static const double _studyScapeLogoFontSize = 20;
+
   // Match study preference screen colors
-  static const Color _pillOrangeBg = Color(0xFFE5A870);
-  static const Color _pillOrangeTextSelected = Color(0xFFC86B2E);
+  static const Color _pillOrangeBg = Color(0xFFEC8B46);
   static const double _pillHeight = 44;
+
+  /// Tight stacked lines — same approach as [CreateAccountScreen] headline.
+  static const double _vibeHeadlineLineHeight = 1.1;
 
   final List<String> _options = [
     'Quiet and mostly empty',
@@ -30,80 +36,56 @@ class _StudyVibeScreenState extends State<StudyVibeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final vibeHeadlineStyle = GoogleFonts.poppins(
+      color: Colors.white.withValues(alpha: 0.5),
+      fontSize: 50,
+      fontWeight: FontWeight.bold,
+      height: _vibeHeadlineLineHeight,
+      letterSpacing: -2,
+    );
+
     return Scaffold(
-      backgroundColor: kStudyscapeBgStart,
+      backgroundColor: Colors.transparent,
       body: SizedBox.expand(
         child: Stack(
           fit: StackFit.expand,
           children: [
             const Positioned.fill(
-              child: StudyscapeBackground(
-                gradientBegin: Alignment.topRight,
-                gradientEnd: Alignment.bottomLeft,
-              ),
+              child: WelcomeBackgroundImage(),
             ),
             SafeArea(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 60),
                   Text(
                     'StudyScape',
+                    textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
+                      color: _studyScapeTitle.withValues(alpha: 0.4),
+                      fontSize: _studyScapeLogoFontSize,
+                      fontWeight: FontWeight.w700,
                     ),
-                ),
-                const SizedBox(height: 24),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 32),
-                    child: ShaderMask(
-                        blendMode: BlendMode.srcIn,
-                        shaderCallback: (bounds) => const LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Color(0xFFE57D37), Color(0xFFEAAD62)],
-                        ).createShader(bounds),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              "what type of",
-                              style: GoogleFonts.poppins(
-                                fontSize: 40,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              "study vibe",
-                              style: GoogleFonts.poppins(
-                                fontSize: 40,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              "are you in",
-                              style: GoogleFonts.poppins(
-                                fontSize: 40,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              "today?",
-                              style: GoogleFonts.poppins(
-                                fontSize: 40,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                  ),
+                  const SizedBox(height: 64),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 32),
+                      child: Text(
+                        'choose your\nstudy vibe...',
+                        textAlign: TextAlign.right,
+                        style: vibeHeadlineStyle,
+                        strutStyle: StrutStyle.fromTextStyle(
+                          vibeHeadlineStyle,
+                          height: _vibeHeadlineLineHeight,
+                          leading: 0,
+                        ),
+                        textHeightBehavior: const TextHeightBehavior(
+                          applyHeightToFirstAscent: false,
+                          applyHeightToLastDescent: false,
+                          leadingDistribution: TextLeadingDistribution.even,
                         ),
                       ),
                     ),
@@ -201,7 +183,9 @@ class _StudyVibeScreenState extends State<StudyVibeScreen> {
                                                                   _options[index],
                                                                   textAlign: TextAlign.center,
                                                                   style: GoogleFonts.inter(
-                                                                    color: Colors.white,
+                                                                    color: isSelected
+                                                                        ? Colors.white
+                                                                        : const Color(0xFFEC8B46),
                                                                     fontSize: 15,
                                                                     fontWeight: FontWeight.w500,
                                                                   ),
