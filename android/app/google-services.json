@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "875325893345",
+    "project_id": "studyscapescu",
+    "storage_bucket": "studyscapescu.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:875325893345:android:17c0de72c9873d11aba5a0",
+        "android_client_info": {
+          "package_name": "com.example.studyscape"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-sDUlYaN2sxmuad87yDyY-2lxL1Fa8XU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

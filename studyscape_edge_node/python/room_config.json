@@ -1,0 +1,10 @@
+{
+  "space_id": "scdi_f2_a",
+  "space_name": "Study room A",
+  "building": "SCDI",
+  "building_index": 3,
+  "floor": 2,
+  "location_line": "Level 2, East Wing",
+  "capacity": 24,
+  "device_id": "device_001"
+}

@@ -1,0 +1,6 @@
+name: studyscape_edge_node
+description: "StudyScape edge sensor node — occupancy (YOLOv8n) + noise (pin mic or USB mic) → Firestore"
+version: "1.0.0"
+ports: []
+bricks: []
+icon: 📚
