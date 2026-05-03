@@ -42,10 +42,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   Future<void> _submit() async {
     if (_loading) return;
+
     setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
+    FocusScope.of(context).unfocus();
+    await Future.delayed(const Duration(milliseconds: 120));
     if (!mounted) return;
-    setState(() => _loading = false);
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(

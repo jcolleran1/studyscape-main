@@ -47,6 +47,104 @@ Rect _displayedImageRect(Size host, Size intrinsic) {
   return Rect.fromLTWH(left, top, w, h);
 }
 
+/// Hit-test bounds for a floor-plan marker (must stay in sync with pin positioning).
+Rect _markerHitRect(Rect rect, List<_RoomMarker> markers, int i, double markerHit) {
+  final left = rect.left + markers[i].rx * rect.width - markerHit / 2 + (i == 2 ? 5.0 : 0.0);
+  final top = rect.top +
+      markers[i].ry * rect.height -
+      markerHit / 2 +
+      ((i == 0 || i == 2) ? 35.0 : (i == 1 ? 5.0 : 0.0)) +
+      (i == 2 ? 35.0 : 0.0) -
+      15.0;
+  return Rect.fromLTWH(left, top, markerHit, markerHit);
+}
+
+List<Rect> _otherMarkerRectsInflated(
+  Rect imageRect,
+  List<_RoomMarker> markers,
+  int activeIndex,
+  double markerHit, {
+  double inflate = 8,
+}) {
+  final out = <Rect>[];
+  for (var j = 0; j < markers.length; j++) {
+    if (j == activeIndex) continue;
+    out.add(_markerHitRect(imageRect, markers, j, markerHit).inflate(inflate));
+  }
+  return out;
+}
+
+double _popupOverlapPenalty(Rect popup, List<Rect> obstacles) {
+  var penalty = 0.0;
+  for (final m in obstacles) {
+    final inter = popup.intersect(m);
+    if (inter.width > 0 && inter.height > 0) {
+      penalty += inter.width * inter.height;
+    }
+  }
+  return penalty;
+}
+
+/// Picks [left],[top] for a fixed-size popup near [tip] without covering other pins when possible.
+({double left, double top}) _pickPopupPosition({
+  required Offset tip,
+  required double popupWidth,
+  required double popupHeight,
+  required double maxW,
+  required double maxH,
+  required List<Rect> otherPins,
+}) {
+  const edgePad = 8.0;
+  const gap = 12.0;
+
+  double clampLeft(double x) => x.clamp(edgePad, maxW - popupWidth - edgePad);
+  double clampTop(double y) => y.clamp(edgePad, maxH - popupHeight - edgePad);
+
+  Rect rectAt(double l, double t) => Rect.fromLTWH(l, t, popupWidth, popupHeight);
+
+  final candidates = <Offset>[
+    Offset(tip.dx + gap, tip.dy - popupHeight * 0.45),
+    Offset(tip.dx - popupWidth - gap, tip.dy - popupHeight * 0.45),
+    Offset(tip.dx - popupWidth / 2, tip.dy + gap),
+    Offset(tip.dx - popupWidth / 2, tip.dy - popupHeight - gap),
+    Offset(tip.dx + gap, tip.dy + gap),
+    Offset(tip.dx - popupWidth - gap, tip.dy + gap),
+    Offset(tip.dx + gap, tip.dy - popupHeight - gap),
+    Offset(tip.dx - popupWidth - gap, tip.dy - popupHeight - gap),
+    Offset(maxW - popupWidth - edgePad, edgePad),
+    Offset(edgePad, edgePad),
+    Offset(edgePad, maxH - popupHeight - edgePad),
+    Offset(maxW - popupWidth - edgePad, maxH - popupHeight - edgePad),
+  ];
+
+  double? bestLeft;
+  double? bestTop;
+  var bestPenalty = double.infinity;
+
+  for (final o in candidates) {
+    final l = clampLeft(o.dx);
+    final t = clampTop(o.dy);
+    final pr = rectAt(l, t);
+    final p = _popupOverlapPenalty(pr, otherPins);
+    if (p == 0) {
+      return (left: l, top: t);
+    }
+    if (p < bestPenalty) {
+      bestPenalty = p;
+      bestLeft = l;
+      bestTop = t;
+    }
+  }
+
+  if (bestLeft != null && bestTop != null) {
+    return (left: bestLeft, top: bestTop);
+  }
+
+  final fallbackL = clampLeft(tip.dx + gap);
+  final fallbackT = clampTop(tip.dy - popupHeight - gap);
+  return (left: fallbackL, top: fallbackT);
+}
+
 /// Building detail: full floor UI for SCDI (index 3); placeholder for other campus buildings.
 class BuildingDetailScreen extends StatefulWidget {
   const BuildingDetailScreen({
@@ -65,6 +163,9 @@ class BuildingDetailScreen extends StatefulWidget {
 class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
   /// Selected floor for SCDI (1–4).
   int _selectedFloor = 1;
+
+  /// Inline map popup for the marker at this index; null when hidden.
+  int? _popupMarkerIndex;
 
   /// Clickable occupancy markers — only on floor 2. Tune [rx]/[ry] (0–1) to match your layout image.
   List<_RoomMarker> _markersForScdiFloor(int floor) {
@@ -105,275 +206,167 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
 
   static const Color _sheetNavy = Color(0xFF0C2D57);
   static const Color _sheetMuted = Color(0xFF6B7280);
-  static const Color _sheetCardBg = Color(0xFFF4F5F7);
   static const Color _sheetOrange = Color(0xFFEC8B46);
 
-  /// Space to leave above the screen bottom so the sheet clears the floating bottom nav
-  /// (matches `Padding` below nav + `Container` vertical padding + icon row in `_buildScdiLayout`).
-  static double _roomSheetBottomReserve(BuildContext context) {
-    final safe = MediaQuery.paddingOf(context).bottom;
-    const outerGap = 16.0;
-    const containerVertical = 24.0;
-    const navRow = 48.0;
-    return safe + outerGap + containerVertical + navRow;
+  void _openSpaceInsights(_RoomMarker marker) {
+    setState(() => _popupMarkerIndex = null);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => SpaceInsightsScreen(
+            spaceId: marker.id,
+            spaceName: marker.label,
+            locationLine: marker.locationLine,
+            capacityPercent: marker.capacityPercent,
+            noiseLevel: marker.noiseLevel,
+            noiseHint: marker.noiseHint,
+          ),
+        ),
+      );
+    });
   }
 
-  void _showOccupancySheet(BuildContext context, _RoomMarker marker) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: true,
-      enableDrag: true,
-      useSafeArea: false,
-      backgroundColor: Colors.transparent,
-      clipBehavior: Clip.none,
-      barrierColor: Colors.black.withValues(alpha: 0.35),
-      builder: (ctx) {
-        final bottomReserve = _roomSheetBottomReserve(ctx);
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => Navigator.of(ctx).pop(),
-                child: const ColoredBox(color: Colors.transparent),
-              ),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(16, 12, 16, bottomReserve),
-                child: SafeArea(
-                  top: true,
-                  bottom: false,
-                  child: Material(
-                    color: Colors.white,
-                    elevation: 16,
-                    shadowColor: Colors.black.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(28),
-                    clipBehavior: Clip.antiAlias,
-                    child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(22, 18, 22, 26),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Center(
-                          child: Container(
-                            width: 40,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade300,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
+  Widget _buildMarkerPopup({
+    required Rect imageRect,
+    required List<_RoomMarker> markers,
+    required BoxConstraints constraints,
+    required double markerHit,
+  }) {
+    final idx = _popupMarkerIndex;
+    if (idx == null || idx < 0 || idx >= markers.length) {
+      return const SizedBox.shrink();
+    }
+    final marker = markers[idx];
+    final hit = _markerHitRect(imageRect, markers, idx, markerHit);
+    const popupWidth = 216.0;
+    const approxHeight = 132.0;
+    final tip = Offset(hit.center.dx, hit.bottom - 4);
+
+    final maxW = constraints.maxWidth;
+    final maxH = constraints.maxHeight;
+
+    final otherPins = _otherMarkerRectsInflated(imageRect, markers, idx, markerHit);
+    final pos = _pickPopupPosition(
+      tip: tip,
+      popupWidth: popupWidth,
+      popupHeight: approxHeight,
+      maxW: maxW,
+      maxH: maxH,
+      otherPins: otherPins,
+    );
+    final left = pos.left;
+    final top = pos.top;
+
+    return Positioned(
+      left: left,
+      top: top,
+      width: popupWidth,
+      child: Material(
+        elevation: 8,
+        shadowColor: Colors.black.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        color: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _openSpaceInsights(marker),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Text(
+                        marker.label,
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          height: 1.2,
+                          color: _sheetNavy,
                         ),
-                        const SizedBox(height: 20),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              InkWell(
-                                onTap: () {
-                                  Navigator.of(ctx).pop();
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                                    if (!context.mounted) return;
-                                    Navigator.of(context).push<void>(
-                                      MaterialPageRoute<void>(
-                                        builder: (_) => SpaceInsightsScreen(
-                                          spaceId: marker.id,
-                                          spaceName: marker.label,
-                                          locationLine: marker.locationLine,
-                                          capacityPercent: marker.capacityPercent,
-                                          noiseLevel: marker.noiseLevel,
-                                          noiseHint: marker.noiseHint,
-                                        ),
-                                      ),
-                                    );
-                                  });
-                                },
-                                borderRadius: BorderRadius.circular(6),
-                                child: Text(
-                                  marker.label,
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w700,
-                                    color: _sheetNavy,
-                                    height: 1.2,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 2),
-                                    child: Icon(
-                                      Icons.location_on_outlined,
-                                      size: 18,
-                                      color: _sheetMuted,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      marker.locationLine,
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 14,
-                                        color: _sheetMuted,
-                                        height: 1.35,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 44,
-                          height: 44,
-                          child: Material(
-                            color: _sheetOrange,
-                            borderRadius: BorderRadius.circular(10),
-                            clipBehavior: Clip.antiAlias,
-                            child: InkWell(
-                              onTap: () {},
-                              borderRadius: BorderRadius.circular(10),
-                              child: const Center(
-                                child: Icon(Icons.bookmark_outline, color: Colors.white, size: 22),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                    const SizedBox(height: 22),
-                    IntrinsicHeight(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: _sheetCardBg,
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'CAPACITY',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 0.8,
-                                      color: _sheetMuted,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    '${marker.capacityPercent}%',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w700,
-                                      color: _sheetNavy,
-                                      height: 1.0,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: _sheetCardBg,
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Container(
-                                    width: 4,
-                                    decoration: BoxDecoration(
-                                      color: _sheetOrange,
-                                      borderRadius: BorderRadius.only(
-                                        topLeft: const Radius.circular(14),
-                                        bottomLeft: const Radius.circular(14),
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.fromLTRB(12, 16, 16, 16),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            'NOISE LEVEL',
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              letterSpacing: 0.8,
-                                              color: _sheetMuted,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            marker.noiseLevel,
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w600,
-                                              color: _sheetOrange,
-                                              height: 1.25,
-                                            ),
-                                          ),
-                                          if (marker.noiseHint.isNotEmpty) ...[
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              marker.noiseHint,
-                                              style: GoogleFonts.poppins(
-                                                fontSize: 12,
-                                                color: Colors.grey.shade600,
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
+                  ),
+                  InkWell(
+                    onTap: () => setState(() => _popupMarkerIndex = null),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Icon(Icons.close, size: 18, color: Colors.grey.shade600),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: Icon(Icons.location_on_outlined, size: 13, color: _sheetMuted),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      marker.locationLine,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        height: 1.25,
+                        color: _sheetMuted,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '${marker.capacityPercent}% · ',
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _sheetNavy,
+                      ),
+                    ),
+                    TextSpan(
+                      text: marker.noiseLevel,
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _sheetOrange,
                       ),
                     ),
                   ],
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
+              if (marker.noiseHint.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  marker.noiseHint,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey.shade600),
+                ),
+              ],
+            ],
           ),
         ),
       ),
-    ),
-    ],
-    );
-      },
     );
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -456,7 +449,10 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
                           child: Material(
                             color: Colors.transparent,
                             child: InkWell(
-                              onTap: () => setState(() => _selectedFloor = floor),
+                              onTap: () => setState(() {
+                                _selectedFloor = floor;
+                                _popupMarkerIndex = null;
+                              }),
                               borderRadius: BorderRadius.circular(8),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -497,73 +493,84 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
                     Size(constraints.maxWidth, constraints.maxHeight),
                     _kScdiFloorPlanImageSize,
                   );
+                  final inner = Rect.fromLTWH(0, 0, rect.width, rect.height);
+                  final popupClamp = BoxConstraints(maxWidth: rect.width, maxHeight: rect.height);
                   const markerHit = 48.0;
 
-                  return Stack(
-                    clipBehavior: Clip.none,
-                    alignment: Alignment.topLeft,
-                    children: [
-                      Positioned(
-                        left: rect.left,
-                        top: rect.top,
-                        width: rect.width,
-                        height: rect.height,
-                        child: Image.asset(
-                          'images/scdi_floor_plan.png',
-                          fit: BoxFit.fill,
-                          errorBuilder: (_, __, ___) => const Center(
-                            child: Icon(Icons.map, size: 120, color: Colors.grey),
-                          ),
-                        ),
-                      ),
-                      for (var i = 0; i < markers.length; i++)
-                        Positioned(
-                          left: rect.left +
-                              markers[i].rx * rect.width -
-                              markerHit / 2 +
-                              (i == 2 ? 5.0 : 0.0),
-                          top: rect.top +
-                              markers[i].ry * rect.height -
-                              markerHit / 2 +
-                              ((i == 0 || i == 2) ? 35.0 : (i == 1 ? 5.0 : 0.0)) +
-                              (i == 2 ? 35.0 : 0.0) -
-                              15.0,
-                          width: markerHit,
-                          height: markerHit,
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              customBorder: const CircleBorder(),
-                              onTap: () => _showOccupancySheet(context, markers[i]),
-                              child: Center(
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  clipBehavior: Clip.none,
-                                  children: [
-                                    Icon(
-                                      Icons.location_on,
-                                      size: 42,
-                                      color: Colors.white,
-                                      shadows: [
-                                        Shadow(
-                                          color: Colors.black.withOpacity(0.35),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    Icon(
-                                      Icons.location_on,
-                                      size: 34,
-                                      color: StudyScapeColors.vibeOptionOrange,
-                                    ),
-                                  ],
+                  return Center(
+                    child: SizedBox(
+                      width: rect.width,
+                      height: rect.height,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.topLeft,
+                        children: [
+                          Positioned.fill(
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => setState(() => _popupMarkerIndex = null),
+                              child: Image.asset(
+                                'images/scdi_floor_plan.png',
+                                fit: BoxFit.fill,
+                                alignment: Alignment.center,
+                                errorBuilder: (_, _, _) => const Center(
+                                  child: Icon(Icons.map, size: 120, color: Colors.grey),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                    ],
+                          ...List<Widget>.generate(markers.length, (i) {
+                            final hit = _markerHitRect(inner, markers, i, markerHit);
+                            return Positioned(
+                              left: hit.left,
+                              top: hit.top,
+                              width: markerHit,
+                              height: markerHit,
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  customBorder: const CircleBorder(),
+                                  onTap: () => setState(() {
+                                    _popupMarkerIndex = _popupMarkerIndex == i ? null : i;
+                                  }),
+                                  child: Center(
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        Icon(
+                                          Icons.location_on,
+                                          size: 42,
+                                          color: Colors.white,
+                                          shadows: [
+                                            Shadow(
+                                              color: Colors.black.withOpacity(0.35),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        Icon(
+                                          Icons.location_on,
+                                          size: 34,
+                                          color: StudyScapeColors.vibeOptionOrange,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                          _buildMarkerPopup(
+                            imageRect: inner,
+                            markers: markers,
+                            constraints: popupClamp,
+                            markerHit: markerHit,
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 },
               ),

@@ -12,6 +12,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final String _displayName = 'Guest User';
   double _envSliderValue = 0.2; // silent
   double _peopleSliderValue = 0.15; // no people
   int _locationIndex = 2; // Lucas
@@ -27,6 +28,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _envSliderValue != _savedEnvSliderValue ||
       _peopleSliderValue != _savedPeopleSliderValue ||
       _locationIndex != _savedLocationIndex;
+
+  String get _initials {
+    final parts = _displayName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return 'GU';
+    if (parts.length == 1) {
+      return parts.first.substring(0, parts.first.length >= 2 ? 2 : 1).toUpperCase();
+    }
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
 
   void _savePreferences() {
     setState(() {
@@ -77,7 +91,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       alignment: Alignment.center,
                       child: Text(
-                        'SA',
+                        _initials,
                         style: GoogleFonts.poppins(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
@@ -98,7 +112,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Sanaa Ahmed',
+                      _displayName,
                       style: GoogleFonts.poppins(
                         fontSize: 20,
                         fontWeight: FontWeight.w600,

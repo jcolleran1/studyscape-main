@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/studyscape_background.dart';
 import '../widgets/circular_submit_button.dart';
-import 'home_screen.dart';
+import 'recommended_screen.dart';
 
 /// Study vibe selection screen: same layout as study preference (gradient header, frosted card, pills, next button).
 class StudyVibeScreen extends StatefulWidget {
@@ -214,9 +214,7 @@ class _StudyVibeScreenState extends State<StudyVibeScreen> {
                                                           Navigator.pushReplacement(
                                                             context,
                                                             MaterialPageRoute(
-                                                              builder: (context) => const HomeScreen(
-                                                                autoShowRecommendations: true,
-                                                              ),
+                                                              builder: (context) => const RecommendedScreen(),
                                                             ),
                                                           );
                                                         }

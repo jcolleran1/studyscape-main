@@ -38,8 +38,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     if (_loading) return;
+
     setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
+    await Future.delayed(const Duration(milliseconds: 120));
     if (!mounted) return;
     setState(() => _loading = false);
     Navigator.pushReplacement(
@@ -174,7 +175,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               const SizedBox(height: 28),
                               FrostedTextField(
                                 controller: _emailController,
-                                hintText: 'Email',
+                                hintText: 'Username',
                                 useLightSurface: true,
                               ),
                               const SizedBox(height: 16),
