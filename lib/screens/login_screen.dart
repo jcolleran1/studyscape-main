@@ -1,12 +1,14 @@
 import 'dart:ui';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/auth_service.dart';
 import '../widgets/circular_submit_button.dart';
 import '../widgets/frosted_text_field.dart';
 import '../widgets/auth_headline_fitted.dart';
 import '../widgets/studyscape_background.dart';
 import 'create_account_screen.dart';
-import 'study_vibe_screen.dart';
+import 'home_screen.dart';
 
 /// Login screen matching create account layout: Welcome Back title, account prompt, Forgot Password.
 class LoginScreen extends StatefulWidget {
@@ -28,6 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _loading = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -38,16 +41,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     if (_loading) return;
-    setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
-    setState(() => _loading = false);
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const StudyVibeScreen(),
-      ),
-    );
+    setState(() { _loading = true; _error = null; });
+    try {
+      await AuthService().signIn(_emailController.text, _passwordController.text);
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        (_) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() { _error = e.message; _loading = false; });
+    }
   }
 
   @override
@@ -198,6 +204,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ),
                               const SizedBox(height: 32),
+                              if (_error != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Text(
+                                    _error!,
+                                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                                  ),
+                                ),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [

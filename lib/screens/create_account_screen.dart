@@ -1,6 +1,8 @@
 import 'dart:ui';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/auth_service.dart';
 import '../widgets/circular_submit_button.dart';
 import '../widgets/frosted_text_field.dart';
 import '../widgets/auth_headline_fitted.dart';
@@ -28,30 +30,34 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   static const double _createHeadlineLineHeight = 0.62;
 
   final _nameController = TextEditingController();
-  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _loading = false;
+  String? _error;
 
   @override
   void dispose() {
     _nameController.dispose();
-    _usernameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (_loading) return;
-    setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
-    setState(() => _loading = false);
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const StudyPreferenceScreen(),
-      ),
-    );
+    setState(() { _loading = true; _error = null; });
+    try {
+      await AuthService().register(_emailController.text, _passwordController.text, _nameController.text);
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const StudyPreferenceScreen()),
+        (_) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() { _error = e.message; _loading = false; });
+    }
   }
 
   @override
@@ -195,8 +201,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                               ),
                               const SizedBox(height: 16),
                               FrostedTextField(
-                                controller: _usernameController,
-                                hintText: 'Username',
+                                controller: _emailController,
+                                hintText: 'Email',
                                 useLightSurface: true,
                               ),
                               const SizedBox(height: 16),
@@ -207,6 +213,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                 useLightSurface: true,
                               ),
                               const SizedBox(height: 32),
+                              if (_error != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Text(
+                                    _error!,
+                                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                                  ),
+                                ),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
