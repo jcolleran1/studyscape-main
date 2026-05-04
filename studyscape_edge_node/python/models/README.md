@@ -1,27 +1,50 @@
-# YOLOv8n ONNX model
+# models/
 
-Place `yolov8n.onnx` in this folder. The app looks for it at:
+This folder must contain a YOLO ONNX file that `python/occupancy.py` loads.
 
-    python/models/yolov8n.onnx
+The default expected path is `python/models/yolov8n.onnx`, set via the
+`YOLO_MODEL_PATH` env var. You can override it to point at a YOLO26 or
+YOLOv11n ONNX file instead.
 
-(Or override with the `YOLO_MODEL_PATH` env var.)
+## Converting YOLO26 (.pt) to ONNX
 
-## If you already have it
+The `.pt` file from Ultralytics is a PyTorch checkpoint and won't run on
+the UNO Q. You need to convert it to ONNX once on a dev machine that has
+Python and the `ultralytics` package installed.
 
-Your GitHub repo ships `models/yolov8n.onnx` at the root — just copy that file here:
+```bash
+pip install ultralytics
+python -c "from ultralytics import YOLO; YOLO('yolo26n.pt').export(format='onnx', opset=12, imgsz=640, simplify=True)"
+```
 
-    cp /path/to/studyscape/models/yolov8n.onnx python/models/
+This produces `yolo26n.onnx` in the same folder. Copy it here:
 
-## If you need to generate it
+```bash
+cp yolo26n.onnx python/models/yolo26n.onnx
+```
 
-On any machine with Python (not required to be the UNO Q):
+Then point the app at it via env var in App Lab's run config:
 
-    pip install ultralytics
-    python -c "from ultralytics import YOLO; YOLO('yolov8n.pt').export(format='onnx', opset=12, imgsz=640, simplify=True)"
+```
+YOLO_MODEL_PATH=/app/python/models/yolo26n.onnx
+```
 
-Then copy `yolov8n.onnx` into this folder.
+## Falling back to YOLOv8n
 
-## Without this file
+If the YOLO26 export fails or runs too slowly on the UNO Q, the same
+process works for YOLOv8n (which is what was originally bundled):
 
-The app still boots. Camera inference is disabled and `occupancy` reports as 0
-until the model is present. The noise pipeline (pin or USB) works regardless.
+```bash
+python -c "from ultralytics import YOLO; YOLO('yolov8n.pt').export(format='onnx', opset=12, imgsz=640, simplify=True)"
+cp yolov8n.onnx python/models/yolov8n.onnx
+```
+
+`occupancy.py` works with any YOLOv8/v11/26 nano-class ONNX export — they
+all share the `(1, 84, N)` output tensor shape. No code change needed.
+
+## Why the conversion step
+
+The UNO Q runs `onnxruntime` (lightweight, ARM-compatible). It does NOT
+have PyTorch or `ultralytics` installed — those are too heavy for an
+embedded board. So the model file shipped here must be the ONNX export,
+not the original `.pt` checkpoint.

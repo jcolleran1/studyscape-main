@@ -10,7 +10,11 @@
 #   CAMERA_INDEX        integer (default 0)
 #   REPORT_INTERVAL_S   seconds between Firestore writes (default 30)
 #   LOOP_INTERVAL_S     seconds between samples inside the window (default 1.0)
-#   YOLO_MODEL_PATH     path to yolov8n.onnx (default ./models/yolov8n.onnx)
+#   OCCUPANCY_BACKEND   "brick" (default) | "yolo"
+#                       brick = Video Object Detection brick (yolox-object-detection)
+#                       yolo  = local ONNX inference (fallback)
+#   YOLO_MODEL_PATH     path to YOLO ONNX (used only when backend=yolo)
+#                       default: ./models/yolov8n.onnx (autodetected)
 #   FIREBASE_SERVICE_ACCOUNT  path to service account JSON
 #                             (default /home/arduino/serviceAccount.json)
 #   ROOM_CONFIG_PATH    path to room_config.json (default ./room_config.json)
@@ -37,9 +41,20 @@ ENABLE_CAMERA       = os.environ.get("ENABLE_CAMERA", "1") == "1"
 CAMERA_INDEX        = int(os.environ.get("CAMERA_INDEX", "0"))
 REPORT_INTERVAL_S   = int(os.environ.get("REPORT_INTERVAL_S", "30"))
 LOOP_INTERVAL_S     = float(os.environ.get("LOOP_INTERVAL_S", "1.0"))
-YOLO_MODEL_PATH     = os.environ.get(
-    "YOLO_MODEL_PATH", os.path.join(HERE, "models", "yolov8n.onnx")
-)
+OCCUPANCY_BACKEND   = os.environ.get("OCCUPANCY_BACKEND", "yolo").lower()
+def _autodetect_model_path() -> str:
+    """Pick the first existing ONNX model in models/, in preference order."""
+    candidates = ["yolo26n.onnx", "yolo11n.onnx", "yolov8n.onnx"]
+    for name in candidates:
+        p = os.path.join(HERE, "models", name)
+        if os.path.exists(p):
+            return p
+    # Fall back to the v8n path even if missing — main.py's error path
+    # will print a helpful message.
+    return os.path.join(HERE, "models", "yolov8n.onnx")
+
+
+YOLO_MODEL_PATH     = os.environ.get("YOLO_MODEL_PATH", _autodetect_model_path())
 ROOM_CONFIG_PATH    = os.environ.get(
     "ROOM_CONFIG_PATH", os.path.join(HERE, "room_config.json")
 )
@@ -95,23 +110,26 @@ detector = None
 cap = None
 if ENABLE_CAMERA:
     try:
-        from occupancy import OccupancyDetector, open_camera
-        detector = OccupancyDetector(YOLO_MODEL_PATH)
-        print(f"[yolo] model loaded: {YOLO_MODEL_PATH}")
-        cap = open_camera(CAMERA_INDEX)
-        if not cap.isOpened():
-            print(f"[camera] /dev/video{CAMERA_INDEX} did not open; "
-                  f"occupancy will report 0")
-            cap = None
+        if OCCUPANCY_BACKEND == "brick":
+            print("[occupancy] backend=brick (Video Object Detection)")
+            from occupancy_brick import OccupancyDetector, open_camera
+        elif OCCUPANCY_BACKEND == "yolo":
+            print("[occupancy] backend=yolo (local ONNX fallback)")
+            from occupancy import OccupancyDetector, open_camera
         else:
-            print(f"[camera] /dev/video{CAMERA_INDEX} ready")
-    except FileNotFoundError as e:
-        print(f"[yolo] {e}; occupancy will report 0 (drop yolov8n.onnx "
-              f"into python/models/ to enable)")
+            print(f"[occupancy] unknown OCCUPANCY_BACKEND={OCCUPANCY_BACKEND!r}; "
+                  f"defaulting to brick")
+            from occupancy_brick import OccupancyDetector, open_camera
+
+        detector = OccupancyDetector(YOLO_MODEL_PATH)  # arg ignored by brick path
+        cap = open_camera(CAMERA_INDEX)                # brick path returns a shim
+        if not cap.isOpened():
+            print("[occupancy] camera shim not ready; occupancy will report 0")
+            cap = None
     except Exception as e:
-        print(f"[yolo/camera] init failed: {e}; occupancy will report 0")
+        print(f"[occupancy] init failed: {e}; occupancy will report 0")
 else:
-    print("[camera] disabled via ENABLE_CAMERA=0")
+    print("[occupancy] disabled via ENABLE_CAMERA=0")
 
 
 # ---------------------------------------------------------------------------
@@ -152,7 +170,7 @@ def _read_occupancy() -> int:
     try:
         return detector.count_people(frame)
     except Exception as e:
-        print(f"[yolo] inference error: {e}")
+        print(f"[occupancy] read error: {e}")
         return 0
 
 
@@ -165,12 +183,86 @@ def _majority(levels) -> str:
     return max(counts, key=counts.get)
 
 
+# ---------------------------------------------------------------------------
+# Hysteresis with escape-valve — stabilizes reports across windows without
+# permanently masking real changes.
+#
+# Behavior:
+#   - If new estimate is within HYSTERESIS_DELTA of the last reported value,
+#     normally we keep the last value (suppresses brief flicker).
+#   - BUT if the new estimate has *consistently* disagreed with the reported
+#     value for HYSTERESIS_PERSISTENCE consecutive windows, we accept the
+#     change. This stops the smoother from latching forever onto a stale
+#     number when reality has shifted by 1 person.
+#   - If the new estimate jumps by MORE than HYSTERESIS_DELTA, accept it
+#     immediately (a real change of 2+ people is real).
+#
+# Set HYSTERESIS_DELTA=0 to disable hysteresis entirely.
+HYSTERESIS_DELTA       = int(os.environ.get("HYSTERESIS_DELTA", "1"))
+HYSTERESIS_PERSISTENCE = int(os.environ.get("HYSTERESIS_PERSISTENCE", "3"))
+
+_last_reported_occ: int = 0
+_pending_value: int = 0          # the value that's been pushing for a change
+_pending_count: int = 0          # how many consecutive windows it's pushed
+
+
+def _apply_hysteresis(new_occ: int) -> int:
+    """Smooth the reported value while still allowing real changes through.
+
+    Returns the value to report. Updates the persistence counters as a
+    side effect so consecutive disagreements eventually win.
+    """
+    global _last_reported_occ, _pending_value, _pending_count
+
+    # Hysteresis disabled — pass through.
+    if HYSTERESIS_DELTA <= 0:
+        _last_reported_occ = new_occ
+        _pending_value = new_occ
+        _pending_count = 0
+        return new_occ
+
+    diff = abs(new_occ - _last_reported_occ)
+
+    # Big jump: accept immediately and reset persistence.
+    if diff > HYSTERESIS_DELTA:
+        _last_reported_occ = new_occ
+        _pending_value = new_occ
+        _pending_count = 0
+        return new_occ
+
+    # Within tolerance and matches what's already reported — nothing pending.
+    if new_occ == _last_reported_occ:
+        _pending_value = new_occ
+        _pending_count = 0
+        return _last_reported_occ
+
+    # Small disagreement. Track persistence: how many windows in a row has
+    # this same new value been pushing for a change?
+    if new_occ == _pending_value:
+        _pending_count += 1
+    else:
+        _pending_value = new_occ
+        _pending_count = 1
+
+    # Escape valve: if it's been pushing for long enough, accept the change.
+    if _pending_count >= HYSTERESIS_PERSISTENCE:
+        _last_reported_occ = new_occ
+        _pending_count = 0
+        return new_occ
+
+    # Otherwise hold the previous reported value.
+    return _last_reported_occ
+
+
 def loop():
     global last_report_ts
 
     # --- per-tick sample ---------------------------------------------------
-    occ_count = _read_occupancy()
-    occupancy_ring.append(occ_count)
+    # Occupancy is no longer polled here: the brick fires its own callback
+    # every frame and we read the rolling max at report time. We still
+    # call _read_occupancy() once for backward compatibility with logging
+    # but its return value is unused for the report.
+    _ = _read_occupancy()
 
     level, raw = noise_source.read()
     noise_raw_ring.append(raw)
@@ -183,17 +275,47 @@ def loop():
     last_report_ts = now
 
     # --- aggregate window --------------------------------------------------
-    avg_occ = sum(occupancy_ring) / len(occupancy_ring) if occupancy_ring else 0.0
-    occ_int = int(round(avg_occ))
-    occ_pct = min(100, int(round(100.0 * avg_occ / CAPACITY)))
+    # Occupancy: most stable count across the recent window.
+    #
+    # Method preference (works on BOTH brick and YOLO backends — both classes
+    # expose the same API in v1.4):
+    #   1. get_robust_count: median of multiple percentiles — most stable
+    #   2. get_rolling_percentile: single percentile fallback
+    #   3. get_rolling_max: legacy peak — last resort, susceptible to spikes
+    if detector is not None and hasattr(detector, "get_robust_count"):
+        raw_occ = int(detector.get_robust_count(window_s=30))
+    elif detector is not None and hasattr(detector, "get_rolling_percentile"):
+        raw_occ = int(detector.get_rolling_percentile(window_s=30, percentile=75))
+    elif detector is not None and hasattr(detector, "get_rolling_max"):
+        raw_occ = int(detector.get_rolling_max(window_s=30))
+    else:
+        raw_occ = 0
+
+    # Hysteresis: suppress ±1 person bounces between consecutive reports.
+    occ_int = _apply_hysteresis(raw_occ)
+
+    if detector is not None:
+        try:
+            cb_total, cb_person = detector.get_callback_stats()
+        except Exception:
+            cb_total, cb_person = 0, 0
+        try:
+            detector.reset_window()
+        except Exception:
+            pass
+    else:
+        cb_total, cb_person = 0, 0
+
+    occ_pct = min(100, int(round(100.0 * occ_int / CAPACITY)))
 
     avg_noise_raw = (sum(noise_raw_ring) / len(noise_raw_ring)
                      if noise_raw_ring else 0.0)
     noise_level = _majority(list(noise_level_ring))
 
-    print(f"[report] occ={occ_int} ({occ_pct}%)  "
-          f"noise={noise_level} raw={avg_noise_raw:.1f}  "
-          f"mode={NOISE_MODE}")
+    print(f"[report] occ={occ_int} ({occ_pct}%)  raw={raw_occ}  "
+          f"noise={noise_level} raw_noise={avg_noise_raw:.1f}  "
+          f"mode={NOISE_MODE}  backend={OCCUPANCY_BACKEND}  "
+          f"frames={cb_total} with_person={cb_person}")
 
     # try Firebase init again in case creds were just dropped in
     firebase_writer.init_firebase()
@@ -207,7 +329,6 @@ def loop():
         noise_source=NOISE_MODE,
     )
 
-    occupancy_ring.clear()
     noise_raw_ring.clear()
     noise_level_ring.clear()
     time.sleep(LOOP_INTERVAL_S)
