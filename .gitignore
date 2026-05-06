@@ -46,4 +46,7 @@ app.*.map.json
 
 # Keys
 backend/config/*.json
-.env
+.env.venv/
+.venv/
+flutter_*.log
+.flutter-plugins-dependencies*

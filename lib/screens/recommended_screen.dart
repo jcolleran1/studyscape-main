@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../utils/app_routes.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
+import '../theme/studyscape_palette.dart';
+import '../widgets/scroll_top_edge_fade.dart';
 import '../widgets/studyscape_colors.dart';
 
 /// Full-page Recommended spots screen with featured recommendation, campus load,
@@ -37,35 +39,39 @@ class _RecommendedScreenState extends State<RecommendedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const bgColor = Color(0xFFF0F1F4);
-    const navBarColor = Color(0xFFE8E6E4);
-    const darkText = Color(0xFF082D5E);
-    const mutedText = Color(0xFF4A4D57);
+    final palette = context.palette;
     const accentOrange = Color(0xFFFF9F1A);
     const quietGreen = Color(0xFF18B663);
-    const chipGrey = Color(0xFFE9EAED);
     final spaces = _filteredSpaces();
     final featuredSpace = spaces.isNotEmpty ? spaces.first : null;
     final nearbySpaces = spaces.length > 1 ? spaces.sublist(1) : const <_SpaceItem>[];
 
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: palette.pageBackground,
       body: SafeArea(
         child: Column(
           children: [
             const SizedBox(height: 40),
-            Text(
-              'StudyScape',
-              style: GoogleFonts.poppins(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-                color: const Color(0xFF585552).withValues(alpha: 0.4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: ColorFiltered(
+                    colorFilter: const ColorFilter.mode(Color(0xFFEC8B46), BlendMode.srcIn),
+                    child: Image.asset('images/studyscape_logo_mark.png', fit: BoxFit.contain),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 38),
             Expanded(
-              child: SingleChildScrollView(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(24, 6, 24, 136),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,7 +83,7 @@ class _RecommendedScreenState extends State<RecommendedScreen> {
                         fontWeight: FontWeight.w600,
                         height: 1.06,
                         letterSpacing: -1.4,
-                        color: darkText,
+                        color: palette.titleInk,
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -86,7 +92,7 @@ class _RecommendedScreenState extends State<RecommendedScreen> {
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         height: 1.42,
-                        color: mutedText,
+                        color: palette.muted,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -128,12 +134,10 @@ class _RecommendedScreenState extends State<RecommendedScreen> {
                         imagePath: featuredSpace.imagePath,
                         occupancyLabel: featuredSpace.occupancyLabel,
                         soundLabel: featuredSpace.soundLabel,
-                        darkText: darkText,
                         quietGreen: quietGreen,
                       ),
                     const SizedBox(height: 28),
                     _CampusLoadCard(
-                      darkText: darkText,
                       accentOrange: accentOrange,
                       quietGreen: quietGreen,
                     ),
@@ -149,7 +153,7 @@ class _RecommendedScreenState extends State<RecommendedScreen> {
                               fontWeight: FontWeight.w700,
                               height: 1.05,
                               letterSpacing: -1.2,
-                              color: darkText,
+                              color: palette.titleInk,
                             ),
                           ),
                         ),
@@ -172,7 +176,7 @@ class _RecommendedScreenState extends State<RecommendedScreen> {
                       Text(
                         'No additional spaces for this filter.',
                         style: GoogleFonts.inter(
-                          color: mutedText,
+                          color: palette.muted,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
@@ -182,48 +186,52 @@ class _RecommendedScreenState extends State<RecommendedScreen> {
                         imagePath: nearbySpaces[i].imagePath,
                         title: nearbySpaces[i].title.replaceAll('\n', ' '),
                         subtitle: nearbySpaces[i].subtitle,
-                        darkText: darkText,
                         badgeLeft: nearbySpaces[i].badgeLeft,
                         badgeRight: nearbySpaces[i].badgeRight,
                         extraTagLabel: nearbySpaces[i].extraTagLabel,
                         extraTagIcon: nearbySpaces[i].extraTagIcon,
-                        chipGrey: chipGrey,
-                        darkButton: darkText,
                       ),
                       if (i != nearbySpaces.length - 1) const SizedBox(height: 22),
                     ],
                   ],
                 ),
               ),
+                  ScrollTopEdgeFade(fadeColor: palette.pageBackground),
+                ],
+              ),
             ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(context).padding.bottom + 16),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-                decoration: BoxDecoration(
-                  color: navBarColor,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _RecommendedNavItem(
-                      icon: Icons.map,
-                      isSelected: false,
-                      onTap: () {
-                        Navigator.pushReplacement(
-                          context,
-                          fadeRoute(const HomeScreen()),
-                        );
-                      },
-                    ),
+            ColoredBox(
+              color: palette.navPillSurface,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, 10, 16, MediaQuery.of(context).padding.bottom + 16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: palette.navPillSurface,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(
+                          alpha: Theme.of(context).brightness == Brightness.dark ? 0.35 : 0.08,
+                        ),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _RecommendedNavItem(
+                        icon: Icons.map,
+                        isSelected: false,
+                        onTap: () {
+                          Navigator.pushReplacement(
+                            context,
+                            fadeRoute(const HomeScreen()),
+                          );
+                        },
+                      ),
                     _RecommendedNavItem(
                       icon: Icons.auto_awesome,
                       isSelected: true,
@@ -234,16 +242,26 @@ class _RecommendedScreenState extends State<RecommendedScreen> {
                       icon: Icons.person_outline,
                       isSelected: false,
                       onTap: () {
-                        Navigator.pushReplacement(
+                        Navigator.push<int?>(
                           context,
-                          fadeRoute(const ProfileScreen()),
-                        );
+                          fadeRoute<int?>(const ProfileScreen()),
+                        ).then((value) {
+                          if (!mounted) return;
+                          if (value != null && value == 0) {
+                            if (!context.mounted) return;
+                            Navigator.pushReplacement(
+                              context,
+                              fadeRoute(const HomeScreen()),
+                            );
+                          }
+                        });
                       },
                     ),
                   ],
                 ),
               ),
             ),
+          ),
           ],
         ),
       ),
@@ -305,13 +323,14 @@ class _BuildingDropdownCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.buildingTileBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFD9DDE6)),
+        border: Border.all(color: palette.subtleBorder),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
@@ -343,7 +362,7 @@ class _BuildingDropdownCard extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: const Color(0xFF213047),
+                        color: palette.titleInk,
                       ),
                     ),
                   ],
@@ -380,7 +399,6 @@ class _FeaturedSpotCard extends StatelessWidget {
     required this.imagePath,
     required this.occupancyLabel,
     required this.soundLabel,
-    required this.darkText,
     required this.quietGreen,
   });
 
@@ -388,151 +406,157 @@ class _FeaturedSpotCard extends StatelessWidget {
   final String imagePath;
   final String occupancyLabel;
   final String soundLabel;
-  final Color darkText;
   final Color quietGreen;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 470,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+    final imageFallback = context.palette.divider;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFA218),
+            borderRadius: BorderRadius.circular(999),
           ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            imagePath,
-            fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => Container(color: const Color(0xFFD6D9DF)),
-          ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withValues(alpha: 0.05),
-                  Colors.black.withValues(alpha: 0.58),
-                ],
-              ),
+          child: Text(
+            'RECOMMENDED FOR YOU',
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.85,
             ),
           ),
-          Positioned(
-            left: 22,
-            right: 22,
-            bottom: 20,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFA218),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    'RECOMMENDED FOR YOU',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.9,
-                    ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          height: 470,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                imagePath,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => Container(color: imageFallback),
+              ),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.05),
+                      Colors.black.withValues(alpha: 0.58),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 14),
-                Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontSize: 50,
-                    fontWeight: FontWeight.w600,
-                    height: 1.06,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Row(
+              ),
+              Positioned(
+                left: 22,
+                right: 22,
+                bottom: 20,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.circle, size: 10, color: quietGreen),
-                    const SizedBox(width: 8),
                     Text(
-                      occupancyLabel,
-                      style: GoogleFonts.inter(
-                        color: Colors.white.withValues(alpha: 0.96),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
+                      title,
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 50,
+                        fontWeight: FontWeight.w600,
+                        height: 1.06,
                       ),
                     ),
-                    const SizedBox(width: 20),
-                    Icon(Icons.volume_up_outlined, size: 16, color: Colors.white.withValues(alpha: 0.9)),
-                    const SizedBox(width: 8),
-                    Text(
-                      soundLabel,
-                      style: GoogleFonts.inter(
-                        color: Colors.white.withValues(alpha: 0.96),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    const SizedBox(height: 28),
+                    Row(
+                      children: [
+                        Icon(Icons.circle, size: 10, color: quietGreen),
+                        const SizedBox(width: 8),
+                        Text(
+                          occupancyLabel,
+                          style: GoogleFonts.inter(
+                            color: Colors.white.withValues(alpha: 0.96),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Icon(Icons.volume_up_outlined, size: 16, color: Colors.white.withValues(alpha: 0.9)),
+                        const SizedBox(width: 8),
+                        Text(
+                          soundLabel,
+                          style: GoogleFonts.inter(
+                            color: Colors.white.withValues(alpha: 0.96),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
 class _CampusLoadCard extends StatelessWidget {
   const _CampusLoadCard({
-    required this.darkText,
     required this.accentOrange,
     required this.quietGreen,
   });
 
-  final Color darkText;
   final Color accentOrange;
   final Color quietGreen;
 
+  static const Color _ctaLabelOnOrange = Color(0xFF082D5E);
+
   @override
   Widget build(BuildContext context) {
+    final heroBg = context.palette.brandHeroBg;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 28, 22, 34),
+      padding: const EdgeInsets.fromLTRB(22, 34, 22, 38),
       decoration: BoxDecoration(
-        color: darkText,
+        color: heroBg,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Real-time Campus Load',
+            'Real-Time Campus Load',
             style: GoogleFonts.poppins(
               color: Colors.white,
-              fontSize: 19,
+              fontSize: 22,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 26),
+          const SizedBox(height: 40),
           _LoadBar(label: 'Main Library', value: 0.88, text: '88% Full', color: accentOrange),
           const SizedBox(height: 16),
           _LoadBar(label: 'Engineering Wing', value: 0.24, text: '24% Full', color: quietGreen),
           const SizedBox(height: 16),
           _LoadBar(label: 'Student Union', value: 0.62, text: '62% Full', color: accentOrange),
-          const SizedBox(height: 26),
+          const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -545,7 +569,7 @@ class _CampusLoadCard extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 elevation: 0,
                 backgroundColor: accentOrange,
-                foregroundColor: darkText,
+                foregroundColor: _ctaLabelOnOrange,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 textStyle: GoogleFonts.inter(
@@ -773,33 +797,30 @@ class _NearbySpotCard extends StatelessWidget {
     required this.imagePath,
     required this.title,
     required this.subtitle,
-    required this.darkText,
     required this.badgeLeft,
     required this.badgeRight,
     required this.extraTagLabel,
     required this.extraTagIcon,
-    required this.chipGrey,
-    required this.darkButton,
   });
 
   final String imagePath;
   final String title;
   final String subtitle;
-  final Color darkText;
   final _BadgeData badgeLeft;
   final _BadgeData badgeRight;
   final String extraTagLabel;
   final IconData extraTagIcon;
-  final Color chipGrey;
-  final Color darkButton;
+
+  static const Color _navigateButtonBg = Color(0xFF072F63);
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F5F7),
+        color: palette.cardRaised,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -815,7 +836,7 @@ class _NearbySpotCard extends StatelessWidget {
               errorBuilder: (_, _, _) => Container(
                 width: double.infinity,
                 height: 128,
-                color: const Color(0xFFD9DCE3),
+                color: palette.divider,
               ),
             ),
           ),
@@ -830,7 +851,7 @@ class _NearbySpotCard extends StatelessWidget {
                     Text(
                       title,
                       style: GoogleFonts.poppins(
-                        color: darkText,
+                        color: palette.titleInk,
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
@@ -839,7 +860,7 @@ class _NearbySpotCard extends StatelessWidget {
                     Text(
                       subtitle,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF4A4D57),
+                        color: palette.muted,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
@@ -848,7 +869,7 @@ class _NearbySpotCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(Icons.bookmark_border_rounded, color: const Color(0xFF4A4D57), size: 24),
+              Icon(Icons.bookmark_border_rounded, color: palette.muted, size: 24),
             ],
           ),
           const SizedBox(height: 14),
@@ -863,18 +884,18 @@ class _NearbySpotCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: chipGrey,
+              color: palette.captionBand,
               borderRadius: BorderRadius.circular(999),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(extraTagIcon, size: 15, color: const Color(0xFF4A4D57)),
+                Icon(extraTagIcon, size: 15, color: palette.muted),
                 const SizedBox(width: 8),
                 Text(
                   extraTagLabel,
                   style: GoogleFonts.poppins(
-                    color: const Color(0xFF4A4D57),
+                    color: palette.muted,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -894,7 +915,7 @@ class _NearbySpotCard extends StatelessWidget {
               },
               style: ElevatedButton.styleFrom(
                 elevation: 0,
-                backgroundColor: darkButton,
+                backgroundColor: _navigateButtonBg,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -956,21 +977,12 @@ class _RecommendedNavItem extends StatelessWidget {
   final bool isSelected;
   final bool useTwoSparkles;
 
-  static const Color _unselectedIconColor = Color(0xFF212B58);
+  static const Color _selectedOrange = Color(0xFFD4A574);
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = isSelected ? StudyScapeColors.vibeOptionOrange : _unselectedIconColor;
-    final child = useTwoSparkles
-        ? Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.auto_awesome, color: iconColor, size: 20),
-              const SizedBox(width: 4),
-              Icon(Icons.auto_awesome, color: iconColor, size: 20),
-            ],
-          )
-        : Icon(icon, color: iconColor, size: 26);
+    final iconColor = isSelected ? StudyScapeColors.vibeOptionOrange : context.palette.titleInk;
+    final child = Icon(icon, color: iconColor, size: 26);
 
     return Material(
       color: Colors.transparent,
@@ -979,6 +991,12 @@ class _RecommendedNavItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: isSelected && (useTwoSparkles || icon == Icons.map)
+              ? BoxDecoration(
+                  color: _selectedOrange.withValues(alpha: 0.35),
+                  shape: BoxShape.circle,
+                )
+              : null,
           child: child,
         ),
       ),

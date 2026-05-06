@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../widgets/studyscape_colors.dart';
+import '../theme/studyscape_palette.dart';
+import '../widgets/scroll_top_edge_fade.dart';
 
 /// Deeper insights for a study space (from map marker / card title).
 class SpaceInsightsScreen extends StatelessWidget {
@@ -22,8 +23,6 @@ class SpaceInsightsScreen extends StatelessWidget {
   final String noiseLevel;
   final String noiseHint;
 
-  static const Color _navy = Color(0xFF0C2D57);
-  static const Color _muted = Color(0xFF6B7280);
   static const Color _orange = Color(0xFFEC8B46);
   static const Color _blue = Color(0xFF6BA3D0);
 
@@ -42,44 +41,51 @@ class SpaceInsightsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final trafficNavy = const Color(0xFF0E1A3A);
+    final palette = context.palette;
+    final pageBg = palette.pageBackground;
+    final trafficCardBg = palette.brandHeroBg;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F4F0),
+      backgroundColor: pageBg,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 40),
+            const SizedBox(height: 24),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () => Navigator.pop(context),
-                    color: StudyScapeColors.primaryBlue,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: ColorFiltered(
+                    colorFilter: const ColorFilter.mode(Color(0xFFEC8B46), BlendMode.srcIn),
+                    child: Image.asset('images/studyscape_logo_mark.png', fit: BoxFit.contain),
                   ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        'StudyScape',
-                        style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                          color: StudyScapeColors.primaryBlue,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => Navigator.pop(context),
+                  color: palette.headerBackInk,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                ),
               ),
             ),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 38, 24, 32),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -88,19 +94,19 @@ class SpaceInsightsScreen extends StatelessWidget {
                       style: GoogleFonts.poppins(
                         fontSize: 28,
                         fontWeight: FontWeight.w700,
-                        color: _navy,
+                        color: palette.titleInk,
                         height: 1.15,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.location_on_outlined, size: 18, color: _muted),
+                        Icon(Icons.location_on_outlined, size: 18, color: palette.muted),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             locationLine,
-                            style: GoogleFonts.poppins(fontSize: 14, color: _muted),
+                            style: GoogleFonts.poppins(fontSize: 14, color: palette.muted),
                           ),
                         ),
                       ],
@@ -110,11 +116,14 @@ class SpaceInsightsScreen extends StatelessWidget {
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: palette.buildingTileBg,
                         borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: palette.subtleBorder),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.06),
+                            color: Colors.black.withValues(
+                              alpha: Theme.of(context).brightness == Brightness.dark ? 0.35 : 0.06,
+                            ),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -128,7 +137,7 @@ class SpaceInsightsScreen extends StatelessWidget {
                             style: GoogleFonts.poppins(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: _navy,
+                              color: palette.titleInk,
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -137,7 +146,7 @@ class SpaceInsightsScreen extends StatelessWidget {
                             style: GoogleFonts.poppins(
                               fontSize: 15,
                               height: 1.5,
-                              color: Colors.grey.shade800,
+                              color: palette.muted,
                             ),
                           ),
                           const SizedBox(height: 20),
@@ -145,8 +154,8 @@ class SpaceInsightsScreen extends StatelessWidget {
                             spacing: 8,
                             runSpacing: 8,
                             children: [
-                              _chip('$capacityPercent% capacity', _orange),
-                              if (noiseHint.isNotEmpty) _chip(noiseHint, _muted),
+                              _chip(context, '$capacityPercent% capacity', _orange),
+                              if (noiseHint.isNotEmpty) _chip(context, noiseHint, palette.muted),
                             ],
                           ),
                         ],
@@ -157,7 +166,7 @@ class SpaceInsightsScreen extends StatelessWidget {
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: trafficNavy,
+                        color: trafficCardBg,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
@@ -245,6 +254,9 @@ class SpaceInsightsScreen extends StatelessWidget {
                   ],
                 ),
               ),
+                  ScrollTopEdgeFade(fadeColor: pageBg),
+                ],
+              ),
             ),
           ],
         ),
@@ -252,11 +264,12 @@ class SpaceInsightsScreen extends StatelessWidget {
     );
   }
 
-  Widget _chip(String text, Color fg) {
+  Widget _chip(BuildContext context, String text, Color fg) {
+    final chipBg = fg == _orange ? _orange.withValues(alpha: 0.15) : context.palette.captionBand;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: fg == _orange ? _orange.withValues(alpha: 0.15) : Colors.grey.shade200,
+        color: chipBg,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
@@ -270,3 +283,5 @@ class SpaceInsightsScreen extends StatelessWidget {
     );
   }
 }
+
+

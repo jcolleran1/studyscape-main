@@ -1,213 +1,122 @@
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../widgets/studyscape_background.dart';
+
+import '../widgets/auth_light_background.dart';
 import 'create_account_screen.dart';
 import 'login_screen.dart';
 
-/// Welcome screen: mesh background, centered “welcome” headline, peach + white pill CTAs.
+/// Light onboarding welcome — soft blue + orange atmospheric hues, orange pill CTA.
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
-  static const Color _brandPeach = Color(0xFFEC8B46);
-  static const Color _studyScapeTitle = Color(0xFF585552);
-
-  /// StudyScape wordmark — 20 logical px (≈ 20pt at 1:1 device scale).
-  static const double _studyScapeLogoFontSize = 20;
-
-  /// SF Pro Text on Apple platforms; Inter medium elsewhere (SF is not bundled).
-  static TextStyle _buttonLabelStyle(Color color) {
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.iOS:
-      case TargetPlatform.macOS:
-        return TextStyle(
-          color: color,
-          fontSize: 18,
-          fontWeight: FontWeight.w500,
-          fontFamily: '.SF Pro Text',
-        );
-      default:
-        return GoogleFonts.inter(
-          color: color,
-          fontSize: 18,
-          fontWeight: FontWeight.w500,
-        );
-    }
-  }
+  static const Color _headlineInk = Color(0xFF212B58);
+  static const Color _subtitleInk = Color(0xFF5C6370);
+  static const Color _footerInk = Color(0xFF8E95A3);
 
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: kAuthLightScaffoldBg,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          const Positioned.fill(child: WelcomeBackgroundImage()),
+          const AuthLightHueBackground(),
           SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 60),
-                      Text(
-                        'StudyScape',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(
-                          color: _studyScapeTitle.withValues(alpha: 0.4),
-                          fontSize: _studyScapeLogoFontSize,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 88),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  width: double.infinity,
-                  child: FittedBox(
-                    fit: BoxFit.fitWidth,
-                    alignment: Alignment.center,
-                    child: Text(
-                      'welcome',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        fontSize: 80,
-                        fontWeight: FontWeight.w700,
-                        height: 1.0,
-                        letterSpacing: -2,
-                        color: const Color(0xFFFFFFFF).withValues(alpha: 0.5),
-                      ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Spacer(flex: 1),
+                  SizedBox(
+                    height: 92,
+                    child: Image.asset(
+                      'images/studyscape_logo_mark.png',
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
                     ),
                   ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 28),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                  const SizedBox(height: 36),
+                  Text(
+                    'Welcome to Studyscape',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                      height: 1.15,
+                      letterSpacing: -0.6,
+                      color: _headlineInk,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Find quieter study spaces on campus with live occupancy and noise cues.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                      height: 1.45,
+                      color: _subtitleInk,
+                    ),
+                  ),
+                  const Spacer(flex: 3),
+                  AuthPrimaryPillButton(
+                    label: 'Get Started',
+                    onPressed: () {
+                      Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const CreateAccountScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 22),
+                  Center(
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        const SizedBox(height: 20),
-                        Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 272),
-                            child: Text(
-                              'Sign up or login to join the world\nof active learners.',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFFFFFFFF),
-                                fontSize: 17,
-                                fontWeight: FontWeight.w400,
-                                height: 1.45,
-                              ),
-                            ),
+                        Text(
+                          'Already have an account? ',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w400,
+                            color: _subtitleInk,
+                            height: 1.4,
                           ),
                         ),
-                        const Spacer(),
-                        const SizedBox(height: 88),
-                        _WelcomePrimaryButton(
-                          label: 'Create an Account',
-                          onPressed: () {
-                            Navigator.push(
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push<void>(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const CreateAccountScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 14),
-                        _WelcomeSecondaryButton(
-                          label: 'Login',
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
+                              MaterialPageRoute<void>(
                                 builder: (context) => const LoginScreen(),
                               ),
                             );
                           },
+                          child: Text(
+                            'Log in',
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: _headlineInk,
+                              height: 1.4,
+                            ),
+                          ),
                         ),
-                        SizedBox(height: 80 + bottom),
                       ],
                     ),
                   ),
-                ),
-              ],
+                  SizedBox(height: 40 + bottom),
+                  const SizedBox(height: 8),
+                ],
+              ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _WelcomePrimaryButton extends StatelessWidget {
-  const _WelcomePrimaryButton({
-    required this.label,
-    required this.onPressed,
-  });
-
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: Material(
-        color: WelcomeScreen._brandPeach,
-        borderRadius: BorderRadius.circular(27),
-        elevation: 0,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(27),
-          child: Center(
-            child: Text(
-              label,
-              style: WelcomeScreen._buttonLabelStyle(Colors.white),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WelcomeSecondaryButton extends StatelessWidget {
-  const _WelcomeSecondaryButton({
-    required this.label,
-    required this.onPressed,
-  });
-
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(27),
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(27),
-          child: Center(
-            child: Text(
-              label,
-              style: WelcomeScreen._buttonLabelStyle(WelcomeScreen._brandPeach),
-            ),
-          ),
-        ),
       ),
     );
   }

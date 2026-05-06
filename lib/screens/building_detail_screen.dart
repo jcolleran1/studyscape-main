@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../theme/studyscape_palette.dart';
 import '../widgets/studyscape_colors.dart';
 import 'space_insights_screen.dart';
 
@@ -204,8 +205,6 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
     ];
   }
 
-  static const Color _sheetNavy = Color(0xFF0C2D57);
-  static const Color _sheetMuted = Color(0xFF6B7280);
   static const Color _sheetOrange = Color(0xFFEC8B46);
 
   void _openSpaceInsights(_RoomMarker marker) {
@@ -257,6 +256,7 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
     );
     final left = pos.left;
     final top = pos.top;
+    final palette = context.palette;
 
     return Positioned(
       left: left,
@@ -267,7 +267,7 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
         shadowColor: Colors.black.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(14),
         clipBehavior: Clip.antiAlias,
-        color: Colors.white,
+        color: palette.buildingTileBg,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
           child: Column(
@@ -287,7 +287,7 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                           height: 1.2,
-                          color: _sheetNavy,
+                          color: palette.titleInk,
                         ),
                       ),
                     ),
@@ -297,7 +297,7 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
                     borderRadius: BorderRadius.circular(12),
                     child: Padding(
                       padding: const EdgeInsets.only(left: 4),
-                      child: Icon(Icons.close, size: 18, color: Colors.grey.shade600),
+                      child: Icon(Icons.close, size: 18, color: palette.muted),
                     ),
                   ),
                 ],
@@ -308,7 +308,7 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(top: 1),
-                    child: Icon(Icons.location_on_outlined, size: 13, color: _sheetMuted),
+                    child: Icon(Icons.location_on_outlined, size: 13, color: palette.muted),
                   ),
                   const SizedBox(width: 4),
                   Expanded(
@@ -319,7 +319,7 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
                       style: GoogleFonts.poppins(
                         fontSize: 11,
                         height: 1.25,
-                        color: _sheetMuted,
+                        color: palette.muted,
                       ),
                     ),
                   ),
@@ -334,7 +334,7 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
                       style: GoogleFonts.poppins(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: _sheetNavy,
+                        color: palette.titleInk,
                       ),
                     ),
                     TextSpan(
@@ -356,7 +356,7 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
                   marker.noiseHint,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey.shade600),
+                  style: GoogleFonts.poppins(fontSize: 10, color: palette.muted),
                 ),
               ],
             ],
@@ -378,9 +378,9 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
 
   /// Layout matching the SCDI screenshot: back + StudyScape, SCDI, Floor selector, floor plan, bottom nav.
   Widget _buildScdiLayout(BuildContext context) {
-    const bgColor = Color(0xFFF5F4F0);
-    const navBarColor = Color(0xFFE8E6E4);
-    const unselectedIconColor = Color(0xFF212B58);
+    final palette = context.palette;
+    final bgColor = palette.pageBackground;
+    final navShadowAlpha = Theme.of(context).brightness == Brightness.dark ? 0.35 : 0.08;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -388,53 +388,72 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
         child: Column(
           children: [
             const SizedBox(height: 40),
-            // Header: back + centered StudyScape (match home screen spacing)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () => Navigator.pop(context),
-                    color: unselectedIconColor,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: ColorFiltered(
+                    colorFilter: const ColorFilter.mode(Color(0xFFEC8B46), BlendMode.srcIn),
+                    child: Image.asset('images/studyscape_logo_mark.png', fit: BoxFit.contain),
                   ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        'StudyScape',
-                        style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                          color: const Color(0xFF212B58),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => Navigator.pop(context),
+                  color: palette.headerBackInk,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                ),
               ),
             ),
             // Building name + Floor label + floor selector
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+              padding: const EdgeInsets.fromLTRB(24, 26, 24, 0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
                     widget.buildingName ?? 'SCDI',
                     style: GoogleFonts.poppins(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                      color: palette.titleInk,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 168,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        'assets/images/scdi_interior_hero.png',
+                        fit: BoxFit.cover,
+                        alignment: Alignment.center,
+                        errorBuilder: (_, _, _) => ColoredBox(
+                          color: palette.divider,
+                          child: Center(
+                            child: Icon(Icons.image_not_supported_outlined, color: palette.muted),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   Text(
                     'Floor',
                     style: GoogleFonts.poppins(
                       fontSize: 14,
-                      color: Colors.grey,
+                      color: palette.muted,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -457,10 +476,10 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: selected ? const Color(0xFFE8E4E0) : Colors.white,
+                                  color: selected ? palette.captionBand : palette.buildingTileBg,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: Colors.grey.shade300,
+                                    color: palette.subtleBorder,
                                     width: 1,
                                   ),
                                 ),
@@ -470,7 +489,7 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
                                     style: GoogleFonts.poppins(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
-                                      color: selected ? Colors.black87 : Colors.grey.shade700,
+                                      color: selected ? palette.titleInk : palette.muted,
                                     ),
                                   ),
                                 ),
@@ -496,9 +515,24 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
                   final inner = Rect.fromLTWH(0, 0, rect.width, rect.height);
                   final popupClamp = BoxConstraints(maxWidth: rect.width, maxHeight: rect.height);
                   const markerHit = 48.0;
+                  final mapOnWhite = Theme.of(context).brightness == Brightness.dark;
 
                   return Center(
-                    child: SizedBox(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: mapOnWhite ? Colors.white : Colors.transparent,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: mapOnWhite
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.22),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: SizedBox(
                       width: rect.width,
                       height: rect.height,
                       child: Stack(
@@ -513,8 +547,12 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
                                 'images/scdi_floor_plan.png',
                                 fit: BoxFit.fill,
                                 alignment: Alignment.center,
-                                errorBuilder: (_, _, _) => const Center(
-                                  child: Icon(Icons.map, size: 120, color: Colors.grey),
+                                errorBuilder: (_, _, _) => Center(
+                                  child: Icon(
+                                    Icons.map,
+                                    size: 120,
+                                    color: mapOnWhite ? const Color(0xFF9CA3AF) : palette.muted,
+                                  ),
                                 ),
                               ),
                             ),
@@ -544,7 +582,7 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
                                           color: Colors.white,
                                           shadows: [
                                             Shadow(
-                                              color: Colors.black.withOpacity(0.35),
+                                              color: Colors.black.withValues(alpha: 0.35),
                                               blurRadius: 6,
                                               offset: const Offset(0, 2),
                                             ),
@@ -571,38 +609,42 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
                         ],
                       ),
                     ),
+                    ),
                   );
                 },
               ),
             ),
             // Bottom nav (match home screen)
-            Padding(
-              padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(context).padding.bottom + 16),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-                decoration: BoxDecoration(
-                  color: navBarColor,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _BuildingDetailNavItem(icon: Icons.map, isSelected: true, onTap: () => Navigator.pop(context, 0)),
-                    _BuildingDetailNavItem(
-                      icon: Icons.auto_awesome,
-                      isSelected: false,
-                      onTap: () => Navigator.pop(context, 1),
-                      useTwoSparkles: true,
-                    ),
-                    _BuildingDetailNavItem(icon: Icons.person_outline, isSelected: false, onTap: () => Navigator.pop(context, 2)),
-                  ],
+            ColoredBox(
+              color: palette.navPillSurface,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, 10, 16, MediaQuery.of(context).padding.bottom + 16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: palette.navPillSurface,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: navShadowAlpha),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _BuildingDetailNavItem(icon: Icons.map, isSelected: true, onTap: () => Navigator.pop(context, 0)),
+                      _BuildingDetailNavItem(
+                        icon: Icons.auto_awesome,
+                        isSelected: false,
+                        onTap: () => Navigator.pop(context, 1),
+                        useTwoSparkles: true,
+                      ),
+                      _BuildingDetailNavItem(icon: Icons.person_outline, isSelected: false, onTap: () => Navigator.pop(context, 2)),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -614,9 +656,9 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
 
   /// Other buildings: same chrome as SCDI, no floor plan yet.
   Widget _buildOtherBuildingLayout(BuildContext context) {
-    const bgColor = Color(0xFFF5F4F0);
-    const navBarColor = Color(0xFFE8E6E4);
-    const unselectedIconColor = Color(0xFF212B58);
+    final palette = context.palette;
+    final bgColor = palette.pageBackground;
+    final navShadowAlpha = Theme.of(context).brightness == Brightness.dark ? 0.35 : 0.08;
     final title = widget.buildingName ?? 'Building';
 
     return Scaffold(
@@ -626,33 +668,35 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
           children: [
             const SizedBox(height: 40),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () => Navigator.pop(context),
-                    color: unselectedIconColor,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: ColorFiltered(
+                    colorFilter: const ColorFilter.mode(Color(0xFFEC8B46), BlendMode.srcIn),
+                    child: Image.asset('images/studyscape_logo_mark.png', fit: BoxFit.contain),
                   ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        'StudyScape',
-                        style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                          color: const Color(0xFF212B58),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => Navigator.pop(context),
+                  color: palette.headerBackInk,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+              padding: const EdgeInsets.fromLTRB(24, 34, 24, 0),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -660,7 +704,7 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: palette.titleInk,
                   ),
                 ),
               ),
@@ -674,40 +718,43 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       fontSize: 15,
-                      color: Colors.grey.shade700,
+                      color: palette.muted,
                       height: 1.4,
                     ),
                   ),
                 ),
               ),
             ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(context).padding.bottom + 16),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-                decoration: BoxDecoration(
-                  color: navBarColor,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _BuildingDetailNavItem(icon: Icons.map, isSelected: true, onTap: () => Navigator.pop(context, 0)),
-                    _BuildingDetailNavItem(
-                      icon: Icons.auto_awesome,
-                      isSelected: false,
-                      onTap: () => Navigator.pop(context, 1),
-                      useTwoSparkles: true,
-                    ),
-                    _BuildingDetailNavItem(icon: Icons.person_outline, isSelected: false, onTap: () => Navigator.pop(context, 2)),
-                  ],
+            ColoredBox(
+              color: palette.navPillSurface,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, 10, 16, MediaQuery.of(context).padding.bottom + 16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: palette.navPillSurface,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: navShadowAlpha),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _BuildingDetailNavItem(icon: Icons.map, isSelected: true, onTap: () => Navigator.pop(context, 0)),
+                      _BuildingDetailNavItem(
+                        icon: Icons.auto_awesome,
+                        isSelected: false,
+                        onTap: () => Navigator.pop(context, 1),
+                        useTwoSparkles: true,
+                      ),
+                      _BuildingDetailNavItem(icon: Icons.person_outline, isSelected: false, onTap: () => Navigator.pop(context, 2)),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -730,22 +777,12 @@ class _BuildingDetailNavItem extends StatelessWidget {
   final bool isSelected;
   final bool useTwoSparkles;
 
-  static const Color _unselectedIconColor = Color(0xFF212B58);
   static const Color _selectedOrange = Color(0xFFD4A574);
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = isSelected ? StudyScapeColors.vibeOptionOrange : _unselectedIconColor;
-    final child = useTwoSparkles
-        ? Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.auto_awesome, color: iconColor, size: 20),
-              const SizedBox(width: 4),
-              Icon(Icons.auto_awesome, color: iconColor, size: 20),
-            ],
-          )
-        : Icon(icon, color: iconColor, size: 26);
+    final iconColor = isSelected ? StudyScapeColors.vibeOptionOrange : context.palette.titleInk;
+    final child = Icon(icon, color: iconColor, size: 26);
 
     return Material(
       color: Colors.transparent,
@@ -754,9 +791,9 @@ class _BuildingDetailNavItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: isSelected && icon == Icons.map
+          decoration: isSelected && (icon == Icons.map || useTwoSparkles)
               ? BoxDecoration(
-                  color: _selectedOrange.withOpacity(0.35),
+                  color: _selectedOrange.withValues(alpha: 0.35),
                   shape: BoxShape.circle,
                 )
               : null,
