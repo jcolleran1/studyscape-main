@@ -1,244 +1,230 @@
-# StudyScape — Edge Sensor Node
+# StudyScape edge sensor node
 
-Arduino UNO Q app that runs on the StudyScape sensor node. Averages noise
-and occupancy and writes to Firestore. Flutter app streams from the same
-Firestore documents.
+Arduino UNO Q application. Samples occupancy and noise in an SCDI study
+room every 30 seconds and writes the result to Firestore. The Flutter app
+streams those same documents.
 
-- **Noise** via MAX4466 pin mic on A0 (default) *or* USB microphone
-- **Occupancy** via USB webcam — primary path is the App Lab
-  Video Object Detection brick (`yolox-object-detection` on the Uno Q),
-  with local YOLO ONNX inference kept as a fallback
-- **Firestore writes** every 30 s to `spaces/<space_id>`
-- **Privacy-by-design**: only integers + classifications uploaded
+- Noise via MAX4466 pin mic on A0 (default), or USB microphone
+- Occupancy via USB webcam. Local YOLO ONNX is the primary path; the
+  App Lab Video Object Detection brick is an alternative.
+- Firestore writes every 30 s to `spaces/<space_id>`
+- Only integers and short classification strings leave the device.
+  No frames, no audio, no PII.
 
-## What changed in v1.3
+## Why two inference backends
 
-This release switches the **default** occupancy backend from local
-ONNX inference back to the **Video Object Detection brick**.
-
-Why:
-
-- The brick is the native App Lab path. Camera ownership, model deployment,
-  and runtime supervision are all handled by the platform.
-- The default `yolox-object-detection` model already includes a `person`
-  class, so no Edge Impulse training is required for a working person
-  counter.
-- The 4 GB Uno Q has the headroom to run the brick alongside the noise
-  sampling, Firestore client, and our app code with comfortable margin.
-- Custom Edge Impulse models can be swapped in later from App Lab without
-  any code changes.
-
-The local YOLO ONNX path (`occupancy.py`) is **kept intact** as a fallback.
-If the bundled YoloX-Nano under-counts in a particular SCDI room — typically
-a problem with overhead camera angles — you can flip a single environment
-variable and fall back to YOLOv8n / YOLO26n locally.
+YOLO ONNX (`occupancy.py`) and the Video Object Detection brick
+(`occupancy_brick.py`) both work. In our SCDI 2201A testing they failed
+in opposite directions: the brick (yolox-object-detection) overcounted
+because it boxed jackets and bag straps as people, and the local YOLO
+backend undercounted at certain camera angles when occupants were
+partially occluded. Either backend may be the right choice in a given
+room, so both are kept. Switch with:
 
 ```
-OCCUPANCY_BACKEND=brick   # default — Video Object Detection brick
-OCCUPANCY_BACKEND=yolo    # fallback — local ONNX in occupancy.py
+OCCUPANCY_BACKEND=yolo    # default: local ONNX
+OCCUPANCY_BACKEND=brick   # use the App Lab brick
 ```
 
-Both backends expose the same `OccupancyDetector` API, so `main.py` is
-unchanged between them.
+Both expose the same `OccupancyDetector` API, so `main.py` doesn't change.
 
 ## Directory layout
 
 ```
 studyscape_edge_node/
-├── app.yaml                       # App Lab manifest (declares the brick)
+├── app.yaml                       App Lab manifest
 ├── README.md
 ├── sketch/
-│   ├── sketch.ino                 # MCU: MAX4466 + Bridge RPCs
+│   ├── sketch.ino                 MCU: MAX4466 sampling + Bridge RPCs
 │   └── sketch.yaml
 └── python/
-    ├── main.py                    # Orchestrator — picks a backend
-    ├── noise.py                   # Pin-mic + USB-mic backends
-    ├── occupancy_brick.py         # PRIMARY: Video Object Detection brick
-    ├── occupancy.py               # FALLBACK: local YOLO ONNX inference
-    ├── firebase_writer.py         # Firestore schema + writes
+    ├── main.py                    Orchestrator, picks the backend
+    ├── noise.py                   Pin-mic and USB-mic backends
+    ├── occupancy.py               YOLO ONNX backend (primary)
+    ├── occupancy_brick.py         Video Object Detection brick backend
+    ├── firebase_writer.py         Firestore schema and writes
     ├── requirements.txt
-    ├── room_config.json           # Per-device settings
-    ├── serviceAccountKey.json     # Firebase creds (paste yours in)
-    └── models/                    # Used only when backend=yolo
+    ├── room_config.json           Per-device settings
+    ├── serviceAccountKey.json     Firebase creds; placeholder
+    └── models/
         ├── README.md
-        ├── yolo26n.pt
-        └── yolo26n.onnx
+        ├── yolo26n.pt             Source weights
+        └── yolo26n.onnx           Converted for on-device inference
 ```
 
 ## Hardware wiring
 
-### MAX4466 pin mic → UNO Q JANALOG
+### MAX4466 pin mic to UNO Q JANALOG
 
-| MAX4466 | UNO Q     | Important                                     |
+| MAX4466 | UNO Q     | Note                                          |
 |---------|-----------|-----------------------------------------------|
-| VCC     | `3V3 OUT` | **Must be 3.3 V.** A0/PA4 is NOT 5V-tolerant. |
+| VCC     | `3V3 OUT` | Must be 3.3 V. A0/PA4 is not 5V-tolerant.     |
 | GND     | `GND`     |                                               |
 | OUT     | `A0` (PA4)|                                               |
 
 ### USB webcam
 
-Plug into the UNO Q's USB-C (via a USB-C hub if you also need it for power).
-The brick auto-discovers the camera at `/dev/video1`. The fallback YOLO
-path uses `/dev/video0` via OpenCV V4L2.
+Plug into the UNO Q's USB-C through a powered USB-C hub. The brick path
+auto-discovers the camera at `/dev/video1`. The local YOLO path opens
+`/dev/video0` through OpenCV's V4L2 backend.
 
-### USB microphone (only if NOISE_MODE=usb)
+### USB microphone
 
-Any class-compliant USB mic. `sounddevice` finds it automatically.
+Only used when `NOISE_MODE=usb`. Any class-compliant mic works;
+`sounddevice` finds it on its own.
 
-## First-time setup in App Lab
+## First-run setup in App Lab
 
-1. **Import the zip** in Arduino App Lab → My Apps → Import.
-2. **First run** will pull the `arduino:video_object_detection` brick
-   container from the Arduino registry. This requires a working internet
-   connection on the Uno Q. Subsequent runs are fast.
-3. **Fill in `python/serviceAccountKey.json`** with your Firebase service
-   account JSON. (Or copy it to `/home/arduino/serviceAccount.json` on the
-   Uno Q and leave the bundled file blank.)
-4. **Edit `python/room_config.json`** for the room this device covers.
-5. **Open the sketch** and click **Add Library** → search
-   `Arduino_RouterBridge` → install the **Arduino 0.4.1** version.
-6. Press **Run**.
+1. Import the project: My Apps → Import zip.
+2. The first run pulls any required brick containers. Needs a working
+   internet connection on the Uno Q. Subsequent runs are fast.
+3. Fill in `python/serviceAccountKey.json` with the real Firebase service
+   account JSON. Alternatively, copy it to
+   `/home/arduino/serviceAccount.json` on the Uno Q and leave the bundled
+   file empty.
+4. Edit `python/room_config.json` for the room this device covers.
+5. In the App Lab sketch view: Add Library → search `Arduino_RouterBridge`
+   → install the 0.4.1 release from Arduino (not the BCMI-labs fork).
+6. Press Run.
 
-The Python console should show:
+Console output during a healthy startup looks like:
 
 ```
-[occupancy] backend=brick (Video Object Detection)
-[occupancy/brick] VideoObjectDetection started (confidence=0.3, debounce_sec=0.0)
-[occupancy/brick] heartbeat started
+[occupancy] backend=yolo (local ONNX)
+[occupancy] YOLO ONNX loaded: .../models/yolo26n.onnx
+[occupancy] inference worker started
 [noise] mode=pin
 [noise] ready (pin backend)
 ```
 
-When people enter the camera frame you'll start seeing periodic `[report]`
-lines with non-zero `occ=` counts.
+Once people are visible to the camera you'll see `[report]` lines with
+non-zero `occ=` values.
 
-## Switching to the YOLO fallback
+## Converting YOLO weights to ONNX
 
-If the brick's bundled model under-counts for your room:
-
-1. Make sure `python/models/yolo26n.onnx` (or `yolov8n.onnx`) exists.
-   See `python/models/README.md` and the `.pt` → `.onnx` conversion below.
-2. In the App Lab project settings, add an environment variable:
-   `OCCUPANCY_BACKEND=yolo`
-3. Restart the app.
-
-The Python console should then show:
-
-```
-[occupancy] backend=yolo (local ONNX fallback)
-[occupancy] YOLO ONNX loaded: .../models/yolo26n.onnx
-[occupancy] inference worker started
-```
-
-### Converting the YOLO .pt to ONNX (fallback path only)
-
-The board can't run PyTorch / ultralytics. Convert once on a dev machine:
+The Uno Q doesn't ship with PyTorch or ultralytics, so convert once on
+your dev machine and check in the `.onnx`:
 
 ```bash
 pip install ultralytics
 python -c "from ultralytics import YOLO; YOLO('yolo26n.pt').export(format='onnx', opset=12, imgsz=640, simplify=True)"
 ```
 
-Drop the `.onnx` into `python/models/`. `occupancy.py` autodetects.
+Drop the resulting file in `python/models/`. `occupancy.py` autodetects.
 
-## Tuning occupancy
+## Tuning
 
-### Brick path (default)
+### Brick path
 
-- **Confidence threshold** — default is `0.30` in `occupancy_brick.py`
-  (`DEFAULT_CONF_THRESHOLD`). Raise to suppress false positives (chairs,
-  jackets); lower to catch more seated people.
-- **Custom model** — to swap in an Edge Impulse model trained on SCDI
-  photos: open the brick in App Lab → AI Models → Train new AI model.
-  Once deployed, select it under Brick Configuration. No code change.
-- **Heartbeat** — `_HEARTBEAT_QUIET_GRACE_S` (default 2 s). After this
-  much silence from the brick, we record a 0 sample so the rolling max
-  decays correctly when the room empties.
+- `BRICK_CONF_THRESHOLD` (default `0.40`): raise it to drop chairs,
+  jackets, and monitors that get boxed as people. Lower it if real
+  distant people are being filtered out.
+- Custom Edge Impulse model: in App Lab, open the brick → AI Models →
+  Train new AI model. Once it's deployed, pick it under Brick
+  Configuration. No code change needed.
+- Heartbeat: `_HEARTBEAT_QUIET_GRACE_S` (default 2 s). After this much
+  silence we record a zero so the rolling buffer decays correctly when
+  the room empties.
 
-### YOLO fallback path
+### YOLO path
 
-- Confidence threshold defaults to `0.25` in `occupancy.py`.
-- Inference runs at ~2 fps in a background thread.
-- Tweak `INFERENCE_INTERVAL_S` in `occupancy.py` for fps vs CPU trade-off.
+- Confidence threshold defaults to `0.25` (in `occupancy.py`).
+- Inference runs at roughly 2 fps in a background thread.
+- Tweak `INFERENCE_INTERVAL_S` for fps vs CPU.
 
 ### Both paths
 
-- Rolling max window is 60 s. Longer is more forgiving of flickery
-  detection; shorter responds faster when the room empties.
+- Rolling window is 30 s, matching the report interval.
+- `HYSTERESIS_DELTA` (default 1): the size of change that gets smoothed.
+- `HYSTERESIS_PERSISTENCE` (default 3): how many consecutive windows
+  the same disagreement must appear in before the smoother accepts it.
+  At a 30 s report cadence this means a steady ±1 change catches up
+  after about 90 seconds. Set `HYSTERESIS_DELTA=0` to turn smoothing off.
 
 ## Firestore schema
-
-Same as v1.1 / v1.2:
 
 ```
 spaces/<space_id>
   space_id, space_name, building, building_index, floor, location_line,
   capacity,
-  occupancy, occupancy_percent, occupancy_level,  # low|medium|high
-  noise,                                          # low|medium|loud
-  noise_label,                                    # "Quiet Zone"|"Moderate Buzz"|"Loud"
+  occupancy, occupancy_percent, occupancy_level,   # low | medium | high
+  noise,                                           # low | medium | loud
+  noise_label,                                     # "Quiet Zone" | ...
   noise_hint, noise_raw, noise_source,
   status, device_id, updated_at
-  └─ history/<auto_id>
-       occupancy, occupancy_percent, noise, noise_raw, timestamp
+  └── history/<auto_id>
+        occupancy, occupancy_percent, noise, noise_raw, timestamp
 
 devices/<device_id>
   status, location, updated_at
 ```
 
-## Environment variables (full list)
+## Environment variables
 
 | Var                        | Default                                        |
 |----------------------------|------------------------------------------------|
-| `OCCUPANCY_BACKEND`        | `brick` (other: `yolo`)                        |
-| `NOISE_MODE`               | `pin`  (other: `usb`)                          |
+| `OCCUPANCY_BACKEND`        | `yolo` (alt: `brick`)                          |
+| `NOISE_MODE`               | `pin`  (alt: `usb`)                            |
 | `ENABLE_CAMERA`            | `1`                                            |
-| `CAMERA_INDEX`             | `0` (only used by `yolo` backend)              |
+| `CAMERA_INDEX`             | `0` (yolo backend only)                        |
 | `REPORT_INTERVAL_S`        | `30`                                           |
 | `LOOP_INTERVAL_S`          | `1.0`                                          |
 | `HYSTERESIS_DELTA`         | `1` (set `0` to disable smoothing)             |
-| `HYSTERESIS_PERSISTENCE`   | `3` (consecutive windows before forced update) |
-| `BRICK_CONF_THRESHOLD`     | `0.40` (only used by `brick` backend)          |
-| `YOLO_MODEL_PATH`          | auto: `models/yolo26n.onnx` else `yolov8n.onnx`|
+| `HYSTERESIS_PERSISTENCE`   | `3` consecutive windows before forced update   |
+| `BRICK_CONF_THRESHOLD`     | `0.40` (brick backend only)                    |
+| `YOLO_MODEL_PATH`          | autodetected: `models/yolo26n.onnx`, etc.      |
 | `ROOM_CONFIG_PATH`         | `python/room_config.json`                      |
 | `FIREBASE_SERVICE_ACCOUNT` | `/home/arduino/serviceAccount.json`            |
 | `NOISE_LOW_DB`             | `50` (USB mode only)                           |
 | `NOISE_MED_DB`             | `65` (USB mode only)                           |
 
-## How hysteresis works (v1.4.1+)
+## How the occupancy aggregation works
 
-Hysteresis stops the reported occupancy from flickering between adjacent
-values when the model output is borderline (e.g. 3/4 with 4 real people
-and one occasionally missed). It works on three rules:
+Each 30-second window holds 27 to 47 per-frame counts from the camera.
+Individual frames disagree because the model occasionally misses or
+double-counts. We need to turn that buffer into one stable number per
+report.
 
-1. **Within tolerance + matches reported** → no change.
-2. **Within tolerance + new value persists for `HYSTERESIS_PERSISTENCE`
-   consecutive windows** → accept the change. With the default of 3 and
-   a 30-second report interval, this means a steady ±1 disagreement
-   catches up after ~90 seconds.
-3. **Outside tolerance** (jump > `HYSTERESIS_DELTA`) → accept immediately.
+### Per-window aggregation: `get_robust_count`
 
-This avoids the v1.4 bug where a steady 1-person disagreement would
-permanently mask the truth. Real changes still propagate; transient
-flicker is still smoothed.
+Plain average drifts when spurious detections cluster, and it produces
+fractional values. Plain max latches onto single bad frames (one frame
+where a jacket got boxed inflates the entire 30 s report). Plain median
+flip-flops on boundary cases.
 
-To see hysteresis in action, watch the `[report]` lines: when `raw`
-and `occ` differ, `raw` is the model's current best estimate and `occ`
-is what's actually reported / sent to Firestore. They should converge
-within 3 reports unless `raw` is genuinely flickering.
+The method we settled on: take four percentile cuts (40th, 55th, 70th,
+80th) across the sorted samples, then return the median of those four
+numbers. This gives the count where most percentile cuts agree, which
+is much more stable than any single statistic.
 
-## Honest caveats
+### Cross-window smoothing: hysteresis with an escape valve
 
-- **First-run iteration is normal.** I have not been able to test this
-  zip end-to-end on actual Uno Q hardware. Expect one or two small fixes
-  on first deploy — a missing import, a brick API quirk, a Firestore auth
-  detail. Logging is verbose so debugging is straightforward.
-- **The brick container downloads on first run.** Plan for ~1–2 minutes of
-  setup the first time the app deploys. Subsequent restarts are fast.
-- **YoloX-Nano vs YOLOv8n is a real trade-off.** If accuracy in SCDI is
-  unacceptable on the brick path, the fallback flag exists for exactly
-  this reason. Both backends are fully wired; either can be the production
-  one.
-- **A custom Edge Impulse model trained on SCDI photos** is the long-term
-  best answer for accuracy, but is not required to ship — the bundled
-  model is a reasonable starting point. Capture this as v2 work.
+Even after `get_robust_count`, consecutive 30 s reports can still differ
+by 1 person when the model output sits on a boundary. Smoothing the
+reported value fixes the flicker but introduces a new bug: a persistent
+±1 disagreement gets masked forever. So the smoothing has an escape
+valve: when the same disagreement persists for `HYSTERESIS_PERSISTENCE`
+consecutive windows, the reported value updates. Larger changes (more
+than `HYSTERESIS_DELTA`) update immediately.
+
+Each `[report]` log line prints both the raw aggregated count and the
+hysteresis-applied reported count, so you can see the smoother working:
+
+```
+[report] occ=4 (20%) raw=4 noise=low raw_noise=53.7 mode=pin backend=yolo
+```
+
+If `raw` and `occ` disagree for more than three reports in a row,
+something is off (or the persistence counter is mid-update; check the
+next report).
+
+## Known limitations
+
+- We have not been able to test this on every camera mount angle in
+  every SCDI room. Some rooms may need tuning of `BRICK_CONF_THRESHOLD`
+  or the percentile cuts in `get_robust_count`.
+- The pin-mic path reports peak-to-peak ADC counts (0–4095), not real
+  decibels. The thresholds in the sketch (`LOW_MAX`, `MED_MAX`) were
+  calibrated for our test room and may need adjustment elsewhere.
+- The system has no offline buffering for Firestore writes. If the Uno
+  Q's Wi-Fi drops, the readings for that window are lost.

@@ -1,0 +1,7 @@
+# Never commit Firebase service account credentials.
+# Put your real serviceAccount.json at /home/arduino/serviceAccount.json
+# on the Uno Q, or set FIREBASE_SERVICE_ACCOUNT to point elsewhere.
+python/serviceAccountKey.json
+python/__pycache__/
+*.pyc
+.cache/

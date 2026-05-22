@@ -1,23 +1,24 @@
 # SPDX-License-Identifier: MPL-2.0
-# StudyScape — Linux orchestrator.
+# StudyScape edge-node orchestrator (Linux side).
 #
-# Runs on the QRB2210 MPU. Reads noise (via pin mic OR USB mic), optionally
-# reads camera frames for occupancy, averages over 30 s, writes to Firestore.
+# Runs on the Uno Q's Qualcomm QRB2210 application processor. Samples noise
+# (pin mic or USB mic), optionally counts people from a camera, averages over
+# 30 seconds, and writes the result to Firestore.
 #
-# Env var configuration:
+# Env vars:
 #   NOISE_MODE          "pin" (default) | "usb"
 #   ENABLE_CAMERA       "1" (default) | "0"
 #   CAMERA_INDEX        integer (default 0)
 #   REPORT_INTERVAL_S   seconds between Firestore writes (default 30)
-#   LOOP_INTERVAL_S     seconds between samples inside the window (default 1.0)
-#   OCCUPANCY_BACKEND   "brick" (default) | "yolo"
-#                       brick = Video Object Detection brick (yolox-object-detection)
-#                       yolo  = local ONNX inference (fallback)
-#   YOLO_MODEL_PATH     path to YOLO ONNX (used only when backend=yolo)
-#                       default: ./models/yolov8n.onnx (autodetected)
-#   FIREBASE_SERVICE_ACCOUNT  path to service account JSON
-#                             (default /home/arduino/serviceAccount.json)
-#   ROOM_CONFIG_PATH    path to room_config.json (default ./room_config.json)
+#   LOOP_INTERVAL_S     seconds between samples inside a window (default 1.0)
+#   OCCUPANCY_BACKEND   "brick" | "yolo" (default depends on what's installed)
+#                         brick: Video Object Detection brick (yolox)
+#                         yolo:  local ONNX inference, kept as a fallback
+#   YOLO_MODEL_PATH     path to YOLO ONNX. Only used when backend=yolo.
+#                       Default: autodetect under ./models/
+#   FIREBASE_SERVICE_ACCOUNT  service account JSON path.
+#                             Default: /home/arduino/serviceAccount.json
+#   ROOM_CONFIG_PATH    path to room_config.json. Default: ./room_config.json
 
 import json
 import os
@@ -32,9 +33,7 @@ import firebase_writer
 from noise import make_noise_source
 
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
+# --- Config ---
 HERE                = os.path.dirname(os.path.abspath(__file__))
 NOISE_MODE          = os.environ.get("NOISE_MODE", "pin").lower()
 ENABLE_CAMERA       = os.environ.get("ENABLE_CAMERA", "1") == "1"
@@ -49,7 +48,7 @@ def _autodetect_model_path() -> str:
         p = os.path.join(HERE, "models", name)
         if os.path.exists(p):
             return p
-    # Fall back to the v8n path even if missing — main.py's error path
+    # Fall back to the v8n path even if missing; main.py's error path
     # will print a helpful message.
     return os.path.join(HERE, "models", "yolov8n.onnx")
 
@@ -60,9 +59,7 @@ ROOM_CONFIG_PATH    = os.environ.get(
 )
 
 
-# ---------------------------------------------------------------------------
-# Load room config
-# ---------------------------------------------------------------------------
+# --- Load room config ---
 try:
     with open(ROOM_CONFIG_PATH) as f:
         ROOM_META = json.load(f)
@@ -85,15 +82,11 @@ DEVICE_ID = ROOM_META.get("device_id", "device_000")
 CAPACITY  = max(1, int(ROOM_META.get("capacity", 10)))
 
 
-# ---------------------------------------------------------------------------
-# Init Firebase (non-fatal if creds are missing)
-# ---------------------------------------------------------------------------
+# --- Init Firebase (non-fatal if creds are missing) ---
 firebase_writer.init_firebase()
 
 
-# ---------------------------------------------------------------------------
-# Init noise source
-# ---------------------------------------------------------------------------
+# --- Init noise source ---
 print(f"[noise] mode={NOISE_MODE}")
 try:
     noise_source = make_noise_source(NOISE_MODE, bridge=Bridge)
@@ -103,9 +96,7 @@ except Exception as e:
     noise_source = make_noise_source("pin", bridge=Bridge)
 
 
-# ---------------------------------------------------------------------------
-# Init camera + YOLO (optional)
-# ---------------------------------------------------------------------------
+# --- Init camera + YOLO (optional) ---
 detector = None
 cap = None
 if ENABLE_CAMERA:
@@ -132,9 +123,7 @@ else:
     print("[occupancy] disabled via ENABLE_CAMERA=0")
 
 
-# ---------------------------------------------------------------------------
-# Graceful shutdown
-# ---------------------------------------------------------------------------
+# --- Graceful shutdown ---
 def _handle_shutdown(*_):
     print("[shutdown] marking device offline…")
     try:
@@ -148,9 +137,7 @@ signal.signal(signal.SIGTERM, _handle_shutdown)
 signal.signal(signal.SIGINT, _handle_shutdown)
 
 
-# ---------------------------------------------------------------------------
-# Main loop — samples inside a 30 s window, then reports
-# ---------------------------------------------------------------------------
+# --- Main loop: samples inside a 30 s window, then reports ---
 # Ring for occupancy samples (1 Hz -> 30 samples over the window)
 occupancy_ring: deque = deque(maxlen=max(1, REPORT_INTERVAL_S))
 # Ring for noise samples (we take one reading per loop iteration as well)
@@ -183,38 +170,35 @@ def _majority(levels) -> str:
     return max(counts, key=counts.get)
 
 
-# ---------------------------------------------------------------------------
-# Hysteresis with escape-valve — stabilizes reports across windows without
-# permanently masking real changes.
+# Hysteresis with an escape-valve.
 #
-# Behavior:
-#   - If new estimate is within HYSTERESIS_DELTA of the last reported value,
-#     normally we keep the last value (suppresses brief flicker).
-#   - BUT if the new estimate has *consistently* disagreed with the reported
-#     value for HYSTERESIS_PERSISTENCE consecutive windows, we accept the
-#     change. This stops the smoother from latching forever onto a stale
-#     number when reality has shifted by 1 person.
-#   - If the new estimate jumps by MORE than HYSTERESIS_DELTA, accept it
-#     immediately (a real change of 2+ people is real).
+# Reports were flickering by ±1 person between consecutive 30-second
+# windows because the model output sat right at the boundary between two
+# counts. Plain hysteresis (always reject changes <= HYSTERESIS_DELTA)
+# fixed the flicker but introduced a new bug: when the real count moved
+# from 3 to 4 and stayed there, the reported value never updated.
 #
-# Set HYSTERESIS_DELTA=0 to disable hysteresis entirely.
+# The fix is a persistence counter. We hold small changes through up to
+# HYSTERESIS_PERSISTENCE consecutive windows of agreement, then accept
+# them. Changes larger than HYSTERESIS_DELTA go through immediately.
+#
+# Set HYSTERESIS_DELTA=0 to turn the smoothing off entirely.
 HYSTERESIS_DELTA       = int(os.environ.get("HYSTERESIS_DELTA", "1"))
 HYSTERESIS_PERSISTENCE = int(os.environ.get("HYSTERESIS_PERSISTENCE", "3"))
 
 _last_reported_occ: int = 0
-_pending_value: int = 0          # the value that's been pushing for a change
-_pending_count: int = 0          # how many consecutive windows it's pushed
+_pending_value: int = 0          # candidate value waiting to be accepted
+_pending_count: int = 0          # how many consecutive windows it has appeared
 
 
 def _apply_hysteresis(new_occ: int) -> int:
-    """Smooth the reported value while still allowing real changes through.
+    """Smooths the reported value while still allowing real changes through.
 
-    Returns the value to report. Updates the persistence counters as a
-    side effect so consecutive disagreements eventually win.
+    Updates the persistence counters as a side effect.
     """
     global _last_reported_occ, _pending_value, _pending_count
 
-    # Hysteresis disabled — pass through.
+    # Hysteresis off: pass through.
     if HYSTERESIS_DELTA <= 0:
         _last_reported_occ = new_occ
         _pending_value = new_occ
@@ -230,7 +214,7 @@ def _apply_hysteresis(new_occ: int) -> int:
         _pending_count = 0
         return new_occ
 
-    # Within tolerance and matches what's already reported — nothing pending.
+    # Within tolerance and matches what's already reported; nothing pending.
     if new_occ == _last_reported_occ:
         _pending_value = new_occ
         _pending_count = 0
@@ -277,11 +261,11 @@ def loop():
     # --- aggregate window --------------------------------------------------
     # Occupancy: most stable count across the recent window.
     #
-    # Method preference (works on BOTH brick and YOLO backends — both classes
+    # Method preference (works on both brick and YOLO backends; both classes
     # expose the same API in v1.4):
-    #   1. get_robust_count: median of multiple percentiles — most stable
+    #   1. get_robust_count: median of multiple percentiles, most stable
     #   2. get_rolling_percentile: single percentile fallback
-    #   3. get_rolling_max: legacy peak — last resort, susceptible to spikes
+    #   3. get_rolling_max: legacy peak, susceptible to single bad frames
     if detector is not None and hasattr(detector, "get_robust_count"):
         raw_occ = int(detector.get_robust_count(window_s=30))
     elif detector is not None and hasattr(detector, "get_rolling_percentile"):
