@@ -1,5 +1,5 @@
 name: studyscape_edge_node
-description: StudyScape edge sensor node — occupancy (Video Object Detection brick, YOLO ONNX fallback) + noise (pin mic or USB mic) → Firestore
+description: StudyScape edge sensor node: occupancy (Video Object Detection brick, YOLO ONNX fallback) + noise (pin or USB mic) writing to Firestore
 ports: []
 bricks:
 - arduino:video_object_detection: {}

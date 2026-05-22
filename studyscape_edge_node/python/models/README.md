@@ -39,12 +39,12 @@ python -c "from ultralytics import YOLO; YOLO('yolov8n.pt').export(format='onnx'
 cp yolov8n.onnx python/models/yolov8n.onnx
 ```
 
-`occupancy.py` works with any YOLOv8/v11/26 nano-class ONNX export — they
+`occupancy.py` works with any YOLOv8/v11/26 nano-class ONNX export. They
 all share the `(1, 84, N)` output tensor shape. No code change needed.
 
 ## Why the conversion step
 
 The UNO Q runs `onnxruntime` (lightweight, ARM-compatible). It does NOT
-have PyTorch or `ultralytics` installed — those are too heavy for an
+have PyTorch or `ultralytics` installed. Those are too heavy for an
 embedded board. So the model file shipped here must be the ONNX export,
 not the original `.pt` checkpoint.

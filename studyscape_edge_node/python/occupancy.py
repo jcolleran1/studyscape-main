@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
-# StudyScape — occupancy detector (local ONNX inference).
+# StudyScape occupancy detector (local ONNX inference).
 #
-# Loads a YOLO ONNX model (YOLOv8n, YOLOv11n, or YOLO26n — all share the
+# Loads a YOLO ONNX model (YOLOv8n, YOLOv11n, or YOLO26n; all share the
 # (1, 84, N) output tensor shape) and runs inference on USB camera frames.
 # A background thread continuously pulls frames, runs inference, and
 # updates a time-stamped sample buffer. main.py reads the rolling max
@@ -33,9 +33,7 @@ import numpy as np
 import onnxruntime as ort
 
 
-# ---------------------------------------------------------------------------
-# Tunables
-# ---------------------------------------------------------------------------
+# --- Tunables ---
 PERSON_CLASS_ID = 0          # COCO class 0 = person
 DEFAULT_CONF_THRESHOLD = 0.25
 DEFAULT_IOU_THRESHOLD = 0.45
@@ -44,9 +42,7 @@ DEFAULT_ROLLING_WINDOW_S = 60
 INFERENCE_INTERVAL_S = 0.5    # run inference twice per second (2 fps)
 
 
-# ---------------------------------------------------------------------------
-# Module-level state for the rolling sample buffer
-# ---------------------------------------------------------------------------
+# --- Module-level state for the rolling sample buffer ---
 _state_lock = threading.Lock()
 _latest_count = 0
 _callback_count = 0
@@ -65,9 +61,7 @@ def _record_sample(count: int) -> None:
         _samples.append((now, count))
 
 
-# ---------------------------------------------------------------------------
-# YOLO inference
-# ---------------------------------------------------------------------------
+# --- YOLO inference ---
 class _YoloRunner:
     """Wraps onnxruntime inference for a YOLOv8/v11/26-style person detector."""
 
@@ -122,7 +116,7 @@ class _YoloRunner:
         # ---- Auto-detect output format ----------------------------------
         # YOLO26 / NMS-free: (N, 6) where each row = [x1, y1, x2, y2, conf, cls]
         # YOLOv8 / YOLOv11:  (84, A) or (A, 84) raw with 4 box + 80 classes
-        # YOLO26 with extra class score: (N, 7) — same idea, treat last col as class
+        # YOLO26 with extra class score: (N, 7); same idea, treat last col as class
         last_dim = preds.shape[-1]
 
         if last_dim == 6:
@@ -136,7 +130,7 @@ class _YoloRunner:
     def _count_yolo26(self, preds: np.ndarray) -> int:
         """
         YOLO26 NMS-free output: each row is [x1, y1, x2, y2, confidence, class_id].
-        Already deduplicated by the model — no NMS needed. Just filter by
+        Already deduplicated by the model; no NMS needed. Just filter by
         confidence and class.
         """
         # preds is (N, 6) or (N, 7)
@@ -200,9 +194,7 @@ class _YoloRunner:
             return 0
 
 
-# ---------------------------------------------------------------------------
-# Camera + inference background thread
-# ---------------------------------------------------------------------------
+# --- Camera + inference background thread ---
 _runner: _YoloRunner | None = None
 _capture: cv2.VideoCapture | None = None
 _worker_thread: threading.Thread | None = None
@@ -232,9 +224,7 @@ def _worker_loop() -> None:
     print("[occupancy] inference worker stopped")
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
+# --- Public API ---
 class OccupancyDetector:
     """
     Loads a YOLO ONNX model and starts a background inference thread that
@@ -299,7 +289,7 @@ class OccupancyDetector:
         window_s: float = 30,
         percentiles: tuple = (40, 55, 70, 80),
     ) -> int:
-        """Median of multiple percentiles — most stable count estimate.
+        """Median of multiple percentiles. Recommended for reporting.
 
         Mirrors the same method on the brick-backed OccupancyDetector.
         Reports the count where the most percentile cuts agree, which is
@@ -340,9 +330,7 @@ class OccupancyDetector:
             _person_callback_count = 0
 
 
-# ---------------------------------------------------------------------------
-# Camera + worker startup
-# ---------------------------------------------------------------------------
+# --- Camera + worker startup ---
 def open_camera(device_index: int = 0, width: int = 1280, height: int = 720):
     """
     Open the USB camera and start the background inference worker.

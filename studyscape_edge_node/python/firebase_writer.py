@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MPL-2.0
-# StudyScape — Firestore writer.
+# StudyScape Firestore writer.
 #
 # Schema written to Firestore (what the Flutter app streams from):
 #

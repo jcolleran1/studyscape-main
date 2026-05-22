@@ -1,14 +1,14 @@
-# StudyScape — Complete Project
+# StudyScape Complete Project
 
 This is the full StudyScape project with everything merged together:
 
-- **Flutter app** (`lib/`, `android/`, `ios/`, etc.) — wired to Firebase
-- **`studyscape_edge_node/`** — Arduino UNO Q App Lab app (noise + occupancy)
-- **`backend/`** — legacy prototype scripts (kept for reference)
+- **Flutter app** (`lib/`, `android/`, `ios/`, etc.) wired to Firebase
+- **`studyscape_edge_node/`** Arduino UNO Q App Lab app (noise + occupancy)
+- **`backend/`** legacy prototype scripts (kept for reference)
 
 ## Quick start
 
-### Part A — Flutter app (your dev machine)
+### Part A Flutter app (your dev machine)
 
 Open PowerShell in this folder:
 
@@ -45,7 +45,7 @@ flutterfire configure
 #### 3. Enable `firebase_options.dart` in main.dart
 
 Open `lib/main.dart`. There are two commented-out lines marked with
-`Uncomment this after flutterfire configure:` — uncomment both, and comment
+`Uncomment this after flutterfire configure:` uncomment both, and comment
 out the plain `await Firebase.initializeApp();` line. It'll look like:
 
 ```dart
@@ -78,7 +78,7 @@ values you saw before (58%, 72%, 41% etc.) so the UI never looks broken.
 
 ---
 
-### Part B — Edge node (on the Arduino UNO Q)
+### Part B Edge node (on the Arduino UNO Q)
 
 See `studyscape_edge_node/README.md` for full details. Quick version:
 
@@ -135,9 +135,9 @@ values come from a Firestore stream:
 ```dart
 _firestore.watchSpaces(['scdi_f2_a', 'scdi_f2_b', 'scdi_f2_c'])
   .listen((Map<String, SpaceReading> live) {
-    // live['scdi_f2_a'].occupancyPercent — current capacity
-    // live['scdi_f2_a'].noiseLabel       — "Quiet Zone" / "Moderate Buzz" / "Loud"
-    // live['scdi_f2_a'].status           — "online" / "offline"
+    // live['scdi_f2_a'].occupancyPercent current capacity
+    // live['scdi_f2_a'].noiseLabel       "Quiet Zone" / "Moderate Buzz" / "Loud"
+    // live['scdi_f2_a'].status           "online" / "offline"
   });
 ```
 

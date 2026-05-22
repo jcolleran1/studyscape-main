@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: MPL-2.0
-# StudyScape — noise acquisition.
+# StudyScape noise acquisition.
 #
 # Two backends, selected by NOISE_MODE env var:
-#   "pin" (default) — MAX4466 on MCU A0, read via Bridge RPC
-#   "usb"           — USB microphone via sounddevice (44.1kHz RMS -> dB)
+#   "pin" (default): MAX4466 on MCU A0, read via Bridge RPC
+#   "usb":           USB microphone via sounddevice (44.1 kHz RMS -> dB)
 
 from __future__ import annotations
 
@@ -22,9 +22,7 @@ class NoiseSource:
         pass
 
 
-# ---------------------------------------------------------------------------
-# Pin-mic backend (MAX4466 on A0 -> MCU sketch -> Bridge RPC)
-# ---------------------------------------------------------------------------
+# --- Pin-mic backend (MAX4466 on A0 -> MCU sketch -> Bridge RPC) ---
 class PinMicNoiseSource(NoiseSource):
     def __init__(self, bridge):
         self._bridge = bridge
@@ -39,9 +37,7 @@ class PinMicNoiseSource(NoiseSource):
             return "low", 0.0
 
 
-# ---------------------------------------------------------------------------
-# USB-mic backend (sounddevice)
-# ---------------------------------------------------------------------------
+# --- USB-mic backend (sounddevice) ---
 class UsbMicNoiseSource(NoiseSource):
     """Records 0.5 s chunks via sounddevice and returns RMS in approximate dB.
 
@@ -87,9 +83,7 @@ class UsbMicNoiseSource(NoiseSource):
         return "loud", db
 
 
-# ---------------------------------------------------------------------------
-# Factory
-# ---------------------------------------------------------------------------
+# --- Factory ---
 def make_noise_source(mode: str, bridge=None) -> NoiseSource:
     mode = (mode or "pin").lower().strip()
     if mode == "pin":

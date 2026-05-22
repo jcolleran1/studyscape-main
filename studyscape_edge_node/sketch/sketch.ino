@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-// StudyScape — Edge Sensor Node (MCU side)
+// StudyScape edge sensor node (MCU side)
 // Board: Arduino UNO Q, MCU: STM32U585 (Zephyr + Arduino Core)
 //
 // Reads MAX4466 pin mic on A0 and exposes classified noise via Bridge RPC.
@@ -7,13 +7,13 @@
 // NOISE_MODE="pin". In USB-mic mode the sketch still boots but sits idle.
 //
 // Wiring (MAX4466 -> UNO Q JANALOG):
-//   VCC -> 3V3 OUT    (NOT 5V — A0/PA4 is NOT 5V-tolerant)
+//   VCC -> 3V3 OUT    (NOT 5V. A0/PA4 is not 5V-tolerant.)
 //   GND -> GND
 //   OUT -> A0 (PA4)
 //
 // IMPORTANT SETUP STEP:
 //   In App Lab, click "Add Library" and add Arduino_RouterBridge
-//   (version 0.4.1 from Arduino — NOT the BCMI-labs fork) before Running.
+//   (version 0.4.1 from Arduino, not the BCMI-labs fork) before Running.
 //   App Lab does NOT auto-resolve this library from the #include alone.
 
 #include <Arduino_RouterBridge.h>
@@ -66,7 +66,7 @@ int get_noise_raw() {
   return (int)averagedP2P();
 }
 
-// Simple health check — Python can call this to verify the MCU is alive.
+// Health check. Python calls this to verify the MCU is alive.
 String ping() {
   return String("pong");
 }
